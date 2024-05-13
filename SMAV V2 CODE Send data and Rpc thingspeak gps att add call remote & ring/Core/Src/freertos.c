@@ -515,6 +515,13 @@ void StartDiagnosticTask(void const * argument)
 		Gas_lvl =   (float)ADC_Read_Gas()*83/4095;
 		
 		//Vsense_1 =  100.000000;
+		//Vsense_2 =  100.000000;
+		//VBattery =  100.000000;
+		//Wind_stat = 100.000000; 
+		//Gas_lvl =   100.000000;
+		//temperature1 = 1;
+		//humidity1 = 1;
+		//HAL_Delay(250);
 		
 		HAL_UART_Transmit(&huart2, (uint8_t *) "-->BGIN SENSORS DATA VALUES----------\n", strlen ("-->BGIN SENSORS DATA VALUES----------\n"), 100);
 		sprintf(float_buffer, "--> Vsense_1     :%f\n",Vsense_1);
