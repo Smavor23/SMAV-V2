@@ -1,0 +1,66 @@
+C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\SMAV_v11\BrowseInfo\Application\User\Core\usart.pbi: \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\Core\Src\usart.c \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Core\Inc\usart.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Core\Inc\main.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Core\Inc\stm32f1xx_hal_conf.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_rcc.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_def.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Device\ST\STM32F1xx\Include\stm32f1xx.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Device\ST\STM32F1xx\Include\stm32f103xb.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Include\core_cm3.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\stdint.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\ycheck.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\yvals.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\DLib_Defaults.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\DLib_Config_Full.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\DLib_Product.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Include\cmsis_version.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Include\cmsis_compiler.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Include\cmsis_iccarm.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\aarch32\iccarm_builtin.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\CMSIS\Device\ST\STM32F1xx\Include\system_stm32f1xx.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\Legacy\stm32_hal_legacy.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\stddef.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\ysizet.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_rcc_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_gpio.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_gpio_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_exti.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_dma.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_dma_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_cortex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_adc.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_adc_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_flash.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_flash_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_i2c.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_pwr.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_spi.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim_ex.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS\cmsis_os.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\FreeRTOS.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Core\Inc\FreeRTOSConfig.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\projdefs.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\portable.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\deprecated_definitions.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\portable\IAR\ARM_CM3\portmacro.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\aarch32\intrinsics.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\aarch32\iar_intrinsics_common.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\mpu_wrappers.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\task.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\list.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\timers.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\task.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\queue.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\semphr.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\queue.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\event_groups.h \
+  C:\Users\lahce\mav\ Dropbox\lahcen\ atti\PC\Documents\SMAV_v11\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include\timers.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\string.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\DLib_Product_string.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\stdio.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\math.h \
+  C:\Program\ Files\IAR\ Systems\Embedded\ Workbench\ 9.0\arm\inc\c\DLib_float_setup.h
