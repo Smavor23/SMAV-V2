@@ -1274,7 +1274,7 @@ void  SIM_BufferProcess(void)
 				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
 				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-
+				relayState = true; // Update the relay state
 				ACCESS = true;
       }
       // if message read contains "ledoff", switch the LED OFF
@@ -1284,7 +1284,7 @@ void  SIM_BufferProcess(void)
 				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
 				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-		
+				relayState = false; // Update the relay state
 				ACCESS = true;
       }
 			else if (strstr(strStart,"\ndiagnostic"))

@@ -118,9 +118,9 @@ char data[512];
 //--------------------------------------------------------------------------
 
 //--------------------------------§URL SERVER§------------------------------
-const char *url = "http://demo.thingsboard.io/api/v1/h0U2oV1SK60dSys7MxIC/telemetry";
-const char *url_RPC = "https://demo.thingsboard.io/api/v1/h0U2oV1SK60dSys7MxIC/attributes?sharedKeys=setValue";
-const char *url_ATTRIBUTE = "https://demo.thingsboard.io/api/v1/h0U2oV1SK60dSys7MxIC/attributes";
+const char *url = "http://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/telemetry";
+const char *url_RPC = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/attributes?sharedKeys=setValue";
+const char *url_ATTRIBUTE = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/attributes";
 //--------------------------------------------------------------------------
 
 //-----------------------§VARIABLES FOR DIAGNOSTIC DATA§--------------------
