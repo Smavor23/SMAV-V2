@@ -23,6 +23,7 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
+#include <stdbool.h> // Include the header file for bool type
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -74,10 +75,10 @@ float Isense;                       		//variable to store Current sensor 1
 float Gas_lvl;                    			//variable to store Gas level
 float Wind_stat;                 				//variable to store wind status
 float wind_Kmh;
-float temperature1 = 1;
-float humidity1    = 1;
-float temperature2 = 2;
-float humidity2    = 2;
+float temperature1 = 1.00;
+float humidity1    = 1.00;
+float temperature2 = 2.00;
+float humidity2    = 2.00;
               					//variable to store index of ADC read
 //--------------------------------------------------------------------------
 
@@ -136,6 +137,7 @@ extern char operatorName[50];
 //-------------------------------§GPS DATA§---------------------------------
 extern char lat[20], lon[20];
 //--------------------------------------------------------------------------
+extern bool ACCESS;     //from trx_sim.c
 bool sendDataTaskRunning;
 //==========================================================================
 //------------------------------END Variables-------------------------------
@@ -440,7 +442,12 @@ void SIM7600_Init(void) {
     SIM_SendString("AT+CGDCONT=1,\"IP\",\"www.inwi.ma\"\r\n");
     HAL_Delay(1000);
 		SIM_SendAtCommand("AT+CNUM\r\n",10000,"OK");
-		HAL_Delay(8000);
+		HAL_Delay(20000);
+		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+		SIM_SendAtCommand("AT+CNMI=2,1\r\n",1000,"OK");
+		HAL_Delay(1000);
+		SIM_SendAtCommand("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n",5000,"OK");
+		SIM_SendAtCommand("AT+CMGD=,4\r\n",10000,"OK"); 
 		HAL_UART_Transmit(&huart2, (uint8_t *) "-->END SIM7600_Init----------------\n", strlen ("-->END SIM7600_Init----------------\n"), 100);
 }
 
@@ -563,21 +570,18 @@ void StartDiagnosticTask(void const * argument)
 		//--------------End LoRa DIAGNOSTIC-----------------------------------------------
 				
 				
-				
 		//--------------Begin Send DIAGNOSTIC Data To Server---------------------------------------------
 		Send_Diagnostic_data(rssiString, functionalityStatus, operatorName, Module_Status);
 		//--------------End Send DIAGNOSTIC Data To Server---------------------------------------------
-				
+
 		
 				
 		//--------------Begin Send Sensors Data To Server---------------------------------------------
 		// Example HTTP POST request with telemetry data
     snprintf(data, sizeof(data), "{\"Vsense_1\":%.2f,\"Vsense_2\":%.2f,\"VBattery\":%.2f,\"Wind_stat\":%.2f,\"Gas_lvl\":%.2f,\"Temp1\":%.2f,\"Temp2\":%.2f,\"Hum1\":%.2f,\"Hum2\":%.2f}",
              Vsense_1, Vsense_2, VBattery, Wind_stat, Gas_lvl, temperature1, temperature2, humidity1, humidity2);
-    SIM7600_HTTPPost(url, data);
+		SIM7600_HTTPPost(url, data);
 		//--------------End Send Sensors Data To Server---------------------------------------------
-		
-		
 		
 		
 		

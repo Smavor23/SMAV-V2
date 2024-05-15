@@ -46,11 +46,11 @@
 .\smav_v11\obj\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
 .\smav_v11\obj\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
 .\smav_v11\obj\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
+.\smav_v11\obj\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 .\smav_v11\obj\freertos.o: ../Core/Inc/trx_sim.h
 .\smav_v11\obj\freertos.o: ../Core/Inc/usart.h
 .\smav_v11\obj\freertos.o: ../Core/Inc/trx_simConf.h
 .\smav_v11\obj\freertos.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h
-.\smav_v11\obj\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdbool.h
 .\smav_v11\obj\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 .\smav_v11\obj\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
 .\smav_v11\obj\freertos.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h

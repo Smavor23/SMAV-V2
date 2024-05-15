@@ -10,13 +10,31 @@
 #include <ctype.h>
 
 void NVIC_SystemReset(void); // Assuming this function exists for microcontroller reset
+//-----------------------------§VARIABLES FOR SENSORS from frertos.c§--------------------        					//variable to store adc raw values
+extern float Vsense_1;                        	//variable to store Voltage sensor 1
+extern float Vsense_2;                       	//variable to store Voltage sensor 2
+extern float VBattery;
+extern float Isense;                       		//variable to store Current sensor 1
+extern float Gas_lvl;                    			//variable to store Gas level
+extern float Wind_stat;                 				//variable to store wind status
+extern float wind_Kmh;
+extern float temperature1;
+extern float humidity1;
+extern float temperature2;
+extern float humidity2;
+
+extern char 	Module_Status[50];
+//--------------------------------------------------------------------------
+bool ACCESS=true;
+char SMAV_NETWORK_STATUS[20];  // Enter the Mobile Number you want to send to
+
 // Declaration of SIM_Status_OK function
 uint8_t SIM_Status_OK(char *response);
 // Function declaration
 uint8_t SIM_SendAtCommande(char *command, uint32_t timeout_ms, char *response, uint32_t response_size);
 uint8_t slot = 0;
 #define PREF_SMS_STORAGE "\"SM\""
-char ATcommandd[80];
+char ATcommandd[500];
 char mobileNumber[] = "+212771101564";  // Enter the Mobile Number you want to send to
 uint8_t i=0;
 #define SUCCESS 1
@@ -1105,6 +1123,11 @@ void	SIM_Init(osPriority Priority)
 //##################################################
 void  SIM_BufferProcess(void)
 {
+	if(Vsense_1<=5){
+			strcpy(ARMED_STATUS, "DISARMED");
+			}else if(Vsense_1>=10){
+			strcpy(ARMED_STATUS, "ARMED");
+			}
 	char      *strStart,*str1;
 	//char *strStart, *str1, *field1_value;
   int32_t   tmp_int32_t;
@@ -1218,34 +1241,143 @@ void  SIM_BufferProcess(void)
 					}
 			}
 	}
+	//receive and send message
+	 // if new message arrived, read the message
+	str1 = strstr(strStart, "\n+CMTI: ");
+			while (1){
+      if( sscanf(strStart, "\n+CMTI: " PREF_SMS_STORAGE ",%hhd", &slot)==1)
+      {
+				
+				
+				ACCESS = false;
+				debugPrintln("find cmti");
+        sprintf(ATcommandd,"AT+CMGRD=%d\r\n",slot);
+        SIM_SendString(ATcommandd); 
+				
+				
+      }
+			else if (strstr(strStart,"\nhi smav"))
+      {
+				
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				sprintf(ATcommandd, "Hi,how can i help you?%c",0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+      }
+      // if message read contains "ledon", switch the LED ON
+      else if (strstr(strStart,"\nARM"))
+      {
+				
+				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
+
+				ACCESS = true;
+      }
+      // if message read contains "ledoff", switch the LED OFF
+      else if (strstr(strStart,"\nDISARM"))
+      {
+        
+				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
+		
+				ACCESS = true;
+      }
+			else if (strstr(strStart,"\ndiagnostic"))
+      {
+				
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				sprintf(ATcommandd, "Diagnostic:\n-Rssi=%s\n-Operator=%s\n-Lora module=%s\n%c", rssiString, operatorName, Module_Status,0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+			}
+			else if (strstr(strStart,"\nweather high"))
+      {
+			
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+				sprintf(ATcommandd, "T1=%.2f°C\nH1=%.2f%%\n%c",temperature1,humidity1,0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+			}else if (strstr(strStart,"\nweather low"))
+      {
+			
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+				sprintf(ATcommandd, "T2=%.2f°C\nH2=%.2f%%\n%c",temperature2,humidity2,0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+			}else if (strstr(strStart,"\nwind speed"))
+      {
+			
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+				sprintf(ATcommandd, "W_S=%.2fKm/h%c",Wind_stat,0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+			}
+			else if (strstr(strStart,"\nmachine"))
+      {
+				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+				SIM_SendString(ATcommandd);
+				sprintf(ATcommandd, "-Battery=%.2f\n-Machine_Status:%s%c",Vsense_2, ARMED_STATUS,0x1a);
+				SIM_SendString(ATcommandd);
+				memset(ATcommandd,NULL,sizeof(ATcommandd));	
+				ACCESS = true;
+			}
+      // This will delete all messages in the SIM card. (Is it ok for you?)
+      else if (strstr(strStart,"RESET"))
+      {
+					SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+					sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+					SIM_SendString(ATcommandd);
+					sprintf(ATcommandd, "OK,the device will restart now%c",0x1a);
+					SIM_SendString(ATcommandd);
+					memset(ATcommandd,NULL,sizeof(ATcommandd));	
+					osDelay(4000);
+          NVIC_SystemReset();
+				
+      }else{
+				ACCESS = true;
+			}
+				break;
+			}
   //Thingsboard Section
 	str1 = strstr(strStart, "\r\nRING");
 if (str1 != NULL)
 {
 	
-	//SIM_SendAtCommand("ATA\r\n",1000,"OK");
-	SIM_SendAtCommand("ATH\r\n",1000,"OK");
+	SIM_SendAtCommand("ATA\r\n",1000,"OK");
+	SIM_SendAtCommand("ATH\r\n",2000,"OK");
 	if(relayState==false)
 	{
 	HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
 		relayState=true;
-		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-		sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-		SIM_SendString(ATcommandd);
-		sprintf(ATcommandd,"MACHINE ARMED%c",0x1a);
-		SIM_SendString(ATcommandd);
+		
 	}else if(relayState==true){
 		HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
 		relayState=false;
-		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-		sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-		SIM_SendString(ATcommandd);
-		sprintf(ATcommandd,"MACHINE DISARMED%c",0x1a);
-		SIM_SendString(ATcommandd);
 	}
 }
 str1 = strstr(strStart, "\"shared\"");
@@ -1278,7 +1410,6 @@ if (str1 != NULL)
                     HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
                     HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
                     HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-                    strcpy(ARMED_STATUS, "ARMED");
                     rpc_status = false;
                     fonction_control = false;
                     prev_fonction_control = true;
@@ -1292,7 +1423,6 @@ if (str1 != NULL)
                     HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
                     HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
                     HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-                    strcpy(ARMED_STATUS, "DISARMED");
                     rpc_status = false;
                     fonction_control = false;
                     prev_fonction_control = true;
@@ -1461,7 +1591,8 @@ if (str1 != NULL)
         else if (rssiValue >= 20 && rssiValue <= 30)
         {
             sprintf(rssiString, "-%d dBm (Excellent)", abs((rssiValue * 2) - 113)); // Use absolute value to avoid double hyphen
-        }
+       
+				}
         else
         {
             strcpy(rssiString, "Unknown RSSI value");
@@ -1628,11 +1759,12 @@ void StartSIMBuffTask(void const * argument)
   debugPrintln("Buffer start");
   while(1)
   {
-    if( ((SIM.UsartRxIndex>4) && (HAL_GetTick()-SIM.UsartRxLastTime > 50)))
+    if( ((SIM.UsartRxIndex>4) && (HAL_GetTick()-SIM.UsartRxLastTime > 30)))
     {
       SIM.BufferStartTime = HAL_GetTick();      
       SIM_BufferProcess();      
       SIM.BufferExeTime = HAL_GetTick()-SIM.BufferStartTime;
+			
     }
     osDelay(10);
   }    
