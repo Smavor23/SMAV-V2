@@ -167,7 +167,7 @@ void                          SIM_SendRaw(uint8_t *Data,uint16_t len);
 uint8_t     		          SIM_SendAtCommand(char *AtCommand,int32_t  MaxWaiting_ms,char *Answer);
 
 //********************************************************************************************************************//
-
+void SIM7600_RESET(void);
 void		      SIM_RxCallBack(void);
 void		      SIM_Init(osPriority Priority);
 void            SIM_SaveParameters(void);
@@ -183,7 +183,7 @@ void			 attachGPRS(void);
 void RPC_control(void);
 void 		 sendMessage( float sht30_t,float sht20_t,float sht30_h,float sht20_h,float Vsense_12,float Vsense_22,float Gas_l,float Wind_s);
 void Send_Diagnostic_data(char* rssiString, char* functionalityStatus, char* operatorName, char* Module_Status);
-void Send_Attribute_data(bool relayState);
+void Send_Attribute_data(bool relayState,char* lat,char* lon,char* rssiString, char* operatorName, char* Module_Status);
 void     set(int set_status);
 void 		 fetchLED(void);
 void RPC_FETCH_ATTRIBUTES(void);

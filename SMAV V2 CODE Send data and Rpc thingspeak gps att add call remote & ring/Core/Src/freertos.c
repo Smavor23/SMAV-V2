@@ -128,7 +128,7 @@ const char *url_ATTRIBUTE = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdB
 char buffer_Diag[512]; 												// Increase buffer size to accommodate larger JSON payload
 char buffer_Attribute[512]; 												// Increase buffer size to accommodate larger JSON payload
 char data_Diag[256]; 													// Increase buffer size to accommodate larger JSON payload
-char data_attribute[100]; 	
+char data_attribute[256]; 	
 //+++++++++++++++++++++++++++++++++trx_sim.c++++++++++++++++++++++++++++++++
 extern char rssiString[50];
 extern char functionalityStatus[50];
@@ -138,7 +138,9 @@ extern char operatorName[50];
 extern char lat[20], lon[20];
 //--------------------------------------------------------------------------
 extern bool ACCESS;     //from trx_sim.c
-bool sendDataTaskRunning;
+extern bool SMS_mode;
+bool sendDataTaskRunning = true;
+uint8_t datatreamcount = 0;	
 //==========================================================================
 //------------------------------END Variables-------------------------------
 //==========================================================================
@@ -305,8 +307,8 @@ void RPC_FETCH_ATTRIBUTES(void) {
 	HAL_Delay(2000);
 	SIM_SendAtCommand("AT+HTTPACTION=0\r\n",3000,"OK");
 	SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n",3000,"OK");
-	SIM_SendAtCommand("AT+HTTPTERM=0\r\n",3000,"OK");
-	HAL_Delay(3000);
+	//SIM_SendAtCommand("AT+HTTPTERM=0\r\n",3000,"OK");
+	//HAL_Delay(3000);
 	memset(buffer_X,NULL,sizeof(buffer_X));
 	
 }
@@ -347,9 +349,9 @@ void SIM7600_HTTPPost(const char *url, const char *data) {
 void SIM7600_ATTRIBUTE(const char *url_ATTRIBUTE, const char *data_attribute) {
     
     // Construct HTTP POST request
-    snprintf(buffer_Attribute, sizeof(buffer_Attribute), "AT+HTTPINIT\r\n");
-    SIM_SendString(buffer_Attribute);
-    HAL_Delay(2000);
+    //snprintf(buffer_Attribute, sizeof(buffer_Attribute), "AT+HTTPINIT\r\n");
+    //SIM_SendString(buffer_Attribute);
+    //HAL_Delay(2000);
     
     snprintf(buffer_Attribute, sizeof(buffer_Attribute), "AT+HTTPPARA=\"URL\",\"%s\"\r\n", url_ATTRIBUTE);
     SIM_SendString(buffer_Attribute);
@@ -374,10 +376,10 @@ void SIM7600_ATTRIBUTE(const char *url_ATTRIBUTE, const char *data_attribute) {
     HAL_Delay(3000);
 		memset(buffer_Attribute,NULL,sizeof(buffer_Attribute));
 }
-void Send_Attribute_data(bool relayState) {
+void Send_Attribute_data(bool relayState,char* lat,char* lon,char* rssiString, char* operatorName, char* Module_Status) {
     
     // Format sensor data into JSON string
-    snprintf(data_attribute, 100, "{\"relayState\": \"%d\", \"latitude\": \"%s\", \"longitude\": \"%s\"}", relayState, lat, lon);
+    snprintf(data_attribute, 100, "{\"relayState\": \"%d\", \"latitude\": \"%s\", \"longitude\": \"%s\",\"rssi\": \"%s\",\"operatorName\": \"%s\",\"moduleStatus\": \"%s\"}", relayState, lat, lon,rssiString,operatorName, Module_Status);
     
     // Your existing code to send data to the server...
 		SIM7600_ATTRIBUTE(url_ATTRIBUTE, data_attribute);
@@ -475,7 +477,7 @@ void GPS_DATA(void) {
 /* USER CODE END Header_StartDiagnosticTask */
 void StartDiagnosticTask(void const * argument)
 {
-		sendDataTaskRunning = true;
+		
   /* USER CODE BEGIN StartDiagnosticTask */
 		memset(buffer,NULL,sizeof(buffer));
 		uint8_t LoRa_status = lora_init(&lora, &hspi1, NSS_GPIO_Port, RESET_GPIO_Port, NSS_Pin, RESET_Pin, LORA_BASE_FREQUENCY_EU);
@@ -499,13 +501,13 @@ void StartDiagnosticTask(void const * argument)
   for(;;)
   {
 		//osSemaphoreWait(BinSemHandle, osWaitForever);
-		
+		sendDataTaskRunning = true;
 		HAL_UART_Transmit(&huart2, (uint8_t *) "DEVICE DEVUI : ", strlen ("DEVICE DEVUI : "), 100);
 		HAL_UART_Transmit(&huart2, (uint8_t *) DEVEUI, strlen (DEVEUI), 100);
 		
-		SIM7600_RESET();
+		
 		SIM7600_Init();
-		GPS_DATA();
+		//GPS_DATA();
 		
 		HAL_Delay(1000);
 		
@@ -571,15 +573,15 @@ void StartDiagnosticTask(void const * argument)
 				
 				
 		//--------------Begin Send DIAGNOSTIC Data To Server---------------------------------------------
-		Send_Diagnostic_data(rssiString, functionalityStatus, operatorName, Module_Status);
+		//Send_Diagnostic_data(rssiString, functionalityStatus, operatorName, Module_Status);
 		//--------------End Send DIAGNOSTIC Data To Server---------------------------------------------
 
 		
 				
 		//--------------Begin Send Sensors Data To Server---------------------------------------------
 		// Example HTTP POST request with telemetry data
-    snprintf(data, sizeof(data), "{\"Vsense_1\":%.2f,\"Vsense_2\":%.2f,\"VBattery\":%.2f,\"Wind_stat\":%.2f,\"Gas_lvl\":%.2f,\"Temp1\":%.2f,\"Temp2\":%.2f,\"Hum1\":%.2f,\"Hum2\":%.2f}",
-             Vsense_1, Vsense_2, VBattery, Wind_stat, Gas_lvl, temperature1, temperature2, humidity1, humidity2);
+    snprintf(data, sizeof(data), "{\"Wind_stat\":%.2f,\"Gas_lvl\":%.2f,\"Temp1\":%.2f,\"Temp2\":%.2f,\"Hum1\":%.2f,\"Hum2\":%.2f,\"rssi\": \"%s\",\"operatorName\": \"%s\",\"moduleStatus\": \"%s\"}",
+             Wind_stat, Gas_lvl, temperature1, temperature2, humidity1, humidity2,rssiString,operatorName,Module_Status);
 		SIM7600_HTTPPost(url, data);
 		//--------------End Send Sensors Data To Server---------------------------------------------
 		
@@ -589,7 +591,6 @@ void StartDiagnosticTask(void const * argument)
 		HAL_UART_Transmit(&huart2, (uint8_t *) str2, strlen (str2), 100);
 		// Set the flag to stop SendDataTask
     sendDataTaskRunning = false;
-		//osSemaphoreRelease(BinSemHandle);
 		osDelay(10 * 60 * 1000); // Delay in milliseconds
   }
   /* USER CODE END StartDiagnosticTask */
@@ -609,42 +610,30 @@ void StartLoraTask(void const * argument)
   for(;;)
   {
 
-		//char *str1 = "Entered StartLoraTask\n";
-		//HAL_UART_Transmit(&huart2, (uint8_t *) str1, strlen (str1), 100);
 		if(error == 0)
 				{
 					// RECEIVING DATA - - - - - - - - - - - - - - - - - - - - - - - -
 					packet_size = lora_parsepacket(&lora);
-					//debugPrintln("CHECK PACKET-SIZE");
 					if (packet_size) {
-						//debugPrintln("RECEIVING DATA - - - - - - - - - - - - - - - - - - - - - - - -");
-						// read data until available
 						idx = 0;
 						while (lora_available(&lora)) read_data[idx++] = lora_read(&lora);
-						// Receive ok
 						read_data[idx] = '\0';
 						RSSI = lora_packet_rssi(&lora);
 						snprintf((char*)buffer, sizeof(buffer), "Rx Data:%s with RSSI %i db\r\n", read_data, RSSI);
-						//debugPrintln("========================================================================================");
-						//debugPrintln((char*)read_data);
-						//debugPrintln("==================================decode_values=========================================");
-						// process the incoming data
 						decode_values();
-						//debugPrintln("****************************************************************************************");
-						//printf("receiveloradatacount: %d\r\n", receiveloradatacount);
-						//debugPrintln("****************************************************************************************");
-						//HAL_GPIO_WritePin(RLY_1_GPIO_Port, RLY_1_Pin, GPIO_PIN_RESET);
 						memset(read_data,NULL,sizeof(read_data));	
 						
 					}
 					else {
-						//HAL_GPIO_WritePin(RLY_1_GPIO_Port, RLY_1_Pin, GPIO_PIN_SET);
-						//debugPrintln("SORRY LORA PER TO PER DATA NOT VALIDE - - - - - - - - - - - - - - - - - - - - - - - -");
 						HAL_Delay(100); 
 					}
-		//char *str2 = "Leaving StartLoraTask\n\n";
-		//HAL_UART_Transmit(&huart2, (uint8_t *) str2, strlen (str2), 100);
-
+		//--------------SENSORS DIAGNOSTIC-----------------------------------------------
+	
+		Vsense_1 =  (float)ADC_Read_VSense_1()/4095*16.5 + 5;
+		Vsense_2 =  (float)ADC_Read_VSense_2()/4095*14.5+ 0.6;
+		VBattery =  (float)ADC_Read_Vbattery();
+		Wind_stat = (float)(ADC_Read_Wind()*(3.3)/(4095))*230; 
+		Gas_lvl =   (float)ADC_Read_Gas()*83/4095;
 		osDelay(1000); // Delay in milliseconds
 					 }
   }
@@ -664,63 +653,18 @@ void StartSendDataTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-		/*
-		// Check if SendDataTask should run
 		
-		char *str1 = "Entered StartRpcTask\n";
-		HAL_UART_Transmit(&huart2, (uint8_t *) str1, strlen (str1), 100);
-					    // Initialize HTTP session
-    if (SIM_SendAtCommand("AT+HTTPINIT\r\n", 1000, "OK") != 1) {
-        debugPrintln("HTTPINIT RESPONSE NOT OK");
-        debugPrintln("Sorry we need to restard module");
-        SIM_SendString("AT+CPOF\r\n");
-        HAL_Delay(30000);
-        return; // Sortir de la fonction si l'initialisation échoue
-    }
-		
-    debugPrintln("HTTPINIT RESPONSE OK");
-		
-		SIM_SendString("AT+HTTPPARA=\"URL\",\"https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/rpc\"\r\n");
-		SIM_SendAtCommand("AT+HTTPACTION=0\r\n",2000,"OK");
-		
-		while(SIM_SendAtCommand("AT+HTTPACTION=0\r\n",2000,"OK")!=1 || fonction_control==prev_fonction_control){
-			//SIM_SendAtCommand("AT+HTTPACTION=0\r\n",2000,"OK");
-			SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n",5000,"OK");
-					if(fonction_control!=prev_fonction_control){
-							HAL_Delay(5000);
-							SIM_SendString("AT+HTTPTERM\r\n");
-							Send_Diagnostic_data(rssiString, functionalityStatus, operatorName, Module_Status,ARMED_STATUS);
-							prev_fonction_control=fonction_control;
-							SIM7600_RESET();
-							SIM7600_Init();
-							break;
-					}
-			HAL_Delay(1000);
 			
-		}
-		
-
-									SIM7600_RESET();
-									SIM7600_Init();
-		}
-		//updateLed();
-		//HAL_Delay(5000);
-		char *str2 = "Leaving StartRpcTask\n\n";
-		HAL_UART_Transmit(&huart2, (uint8_t *) str2, strlen (str2), 100);
-		//osSemaphoreRelease(BinSemHandle);
-		*/
-		//osSemaphoreWait(BinSemHandle, osWaitForever);
+		//Buffer to store the formatted string
 		if(sendDataTaskRunning == false){
 		RPC_FETCH_ATTRIBUTES();
-		HAL_Delay(5000);
-		
-		if(prev_relayState!=relayState){
+		HAL_Delay(10000);
+
+		//send a real time data or the urgent data
 		prev_relayState=relayState;
-		Send_Attribute_data(relayState);
-		
-		}
+		snprintf(data_attribute, 256, "{\"relayState\": \"%d\",\"Machine\":%.2f,\"Battery\":%.2f}", relayState,Vsense_1, Vsense_2);
+		SIM7600_ATTRIBUTE(url_ATTRIBUTE, data_attribute);
 	}
-		//osSemaphoreRelease(BinSemHandle);
 		osDelay(40 * 1000); // Delay in milliseconds
   }
   /* USER CODE END StartSendDataTask */

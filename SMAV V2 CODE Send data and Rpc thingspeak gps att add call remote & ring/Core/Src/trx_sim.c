@@ -22,12 +22,12 @@ extern float temperature1;
 extern float humidity1;
 extern float temperature2;
 extern float humidity2;
-
+extern bool sendDataTaskRunning;
 extern char 	Module_Status[50];
 //--------------------------------------------------------------------------
-bool ACCESS=true;
+bool ACCESS;
 char SMAV_NETWORK_STATUS[20];  // Enter the Mobile Number you want to send to
-
+bool SMS_mode=false;
 // Declaration of SIM_Status_OK function
 uint8_t SIM_Status_OK(char *response);
 // Function declaration
@@ -42,6 +42,7 @@ uint8_t i=0;
 char temp_str[20]; 
 char ARMED_STATUS[10];
 bool relayState = false; // Initialize the relay state
+
 bool prev_relayState; // Initialize the relay state
 //Signal strength Variable
 char signalString[10]; // Assuming maximum 10 characters for the signal value
@@ -69,9 +70,6 @@ void            StartAlarmBuffTask(void const * argument);
 uint8_t         LastCmdIdx = LAST_CMD_IDX;
 uint8_t         Alert1Cmd = ALERT1_CMD;
 uint8_t         Alert2Cmd = ALERT2_CMD;
-static uint8_t  temp1_val;
-static uint8_t  temp2_val;
-static uint8_t  wind1_val;
 uint8_t         MachineState = 0;
 bool            WindyCond = false;
 uint8_t         ledStatus = 0;
@@ -347,747 +345,8 @@ void SIM_SetFactoryDefault(void)
   #endif
 }
 
-int SIM_IsNumberAdmin(uint64_t compared_number)
-{
-	for (int i = 0; i < sizeof(SIM.Alert.Admin_Numbers); i++)
-	{
-		if (compared_number == SIM.Alert.Admin_Numbers[i].Number)
-		{
-			return i;
-		}
-	}
-
-	return -1; /* Return -1 error as number not found */
-}
-
-int SIM_IsNumberAdded(uint64_t compared_number)
-{
-	//	for (int i = 0; i < 10; i++)
-  for (int i = 0; i < SIM.Status.num_set; i++)
-  {
-    if (compared_number == SIM.Alert.User_Numbers[i].Number)
-    {
-      return i;
-    }
-  }
-
-  return -1; /* Return -1 error as number not found */
-}
-
-void getUserNumbers(void)
-{
-	char tempChar[15];
-	
-	strcat((char*)SIM.SMSBuffer, "Users :\n");
-	
-	for (int i = 0; i < 10; i++)
-	{
-		sprintf(tempChar,  "%d %llu\n", (i+1), SIM.Alert.User_Numbers[i].Number);
-		strcat((char*)SIM.SMSBuffer, tempChar);
-		debugPrint(tempChar);
-	}
-}
-
-//********************************************************************************************************************//
-uint32_t integer;
-int SIM_CMDParse (int command, float temp_1, float temp_2, float hum_1, float hum_2, float vsen1, float vsen2, int isen, int tsen, float gas_1, float wind_1)
-{
-  memset(SIM.SMSBuffer,0,sizeof SIM.SMSBuffer);
-  memset(SIM.AuxBuffer,0,sizeof SIM.AuxBuffer);
-  int admin_idx;
-  int user_idx;
-  uint8_t alert_stat;
-  
-  switch(command)
-	{
-	  case TEMP_CMD:	
-			sprintf((char*)SIM.SMSBuffer,  "%s T2 = %d.%dC\n%s H2 = %d.%d%%\n%s T1 = %d.%dC\n%s H1 = %d.%d%% RH\n", 
-			         temp_hum[SIM.Status.lang_set][0], SHT2x_GetInteger(temp_1), SHT2x_GetDecimal(temp_1, 1),
-					 temp_hum[SIM.Status.lang_set][1], SHT2x_GetInteger(hum_1), SHT2x_GetDecimal(hum_1, 1),
-					 temp_hum[SIM.Status.lang_set][0], SHT2x_GetInteger(temp_2), SHT2x_GetDecimal(temp_2, 1),
-					 temp_hum[SIM.Status.lang_set][1], SHT2x_GetInteger(hum_2), SHT2x_GetDecimal(hum_2, 1));
-			break; 
-			
-		case T1_CMD:
-			sprintf((char*)(SIM.SMSBuffer), "%s T1 = %d.%dC\n", temp_hum[SIM.Status.lang_set][0], SHT2x_GetInteger(temp_2), SHT2x_GetDecimal(temp_2, 1));
-			break;
-		case T2_CMD:
-			sprintf((char*)(SIM.SMSBuffer), "%s T2 = %d.%dC\n", temp_hum[SIM.Status.lang_set][0], SHT2x_GetInteger(temp_1), SHT2x_GetDecimal(temp_1, 1)); 
-			break;
-		case H1_CMD:
-			sprintf((char*)(SIM.SMSBuffer), "%s H1 = %d.%d%% RH\n", temp_hum[SIM.Status.lang_set][1], SHT2x_GetInteger(hum_1), SHT2x_GetDecimal(hum_2, 1));
-			break;
-		case H2_CMD:
-			sprintf((char*)(SIM.SMSBuffer), "%s H2 = %d.%d%% RH\n", temp_hum[SIM.Status.lang_set][1], SHT2x_GetInteger(hum_2), SHT2x_GetDecimal(hum_2, 1));
-			break;
-						
-	  case GAS_CMD:
-			
-			sprintf((char*)SIM.SMSBuffer,  "%s: %.2f%%\n", ans_N[SIM.Status.lang_set][command], gas_1);
-			break;
 
 
-		
-	  case STATE_CMD:
-			if(vsen1 < 12)
-			{
-				sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_N[SIM.Status.lang_set][command]);
-			}
-			else
-			{
-				sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_P[SIM.Status.lang_set][command]);
-			}
-			break;
-            
-	  case BATTERY_CMD:
-			sprintf((char*)SIM.SMSBuffer,  "%s %.2fV\n", ans_P[SIM.Status.lang_set][BATTERY_CMD], vsen2);
-			break;
-		
-      case ALARM_CMD:
-	  		admin_idx = SIM.Status.Active_Admin_Idx;
-			user_idx  = SIM.Status.Active_User_Idx;
-
-			/* Check if current sender is an Admin or a Normal user */
-			if(admin_idx >= 0) 
-			{ 
-				alert_stat = SIM.Alert.Admin_Numbers[admin_idx].Alert_Stat;
-			}
-			else{ 
-			    alert_stat = SIM.Alert.User_Numbers[user_idx].Alert_Stat;
-			}
-
-			sprintf((char*)SIM.SMSBuffer,  "%s\n", ((alert_stat == 1) ? (ans_P[SIM.Status.lang_set][ALARM_CMD]) : (ans_N[SIM.Status.lang_set][ALARM_CMD]) ));
-			debugPrintln((char*)SIM.SMSBuffer);
-			break;
-
-	  case SET_ALARM_CMD:
-			admin_idx = SIM.Status.Active_Admin_Idx;
-			user_idx  = SIM.Status.Active_User_Idx;
-
-			if(admin_idx >= 0) 
-			{ 
-				SIM.Alert.Admin_Numbers[admin_idx].Temp_Diff = temp1_val;
-				sprintf((char*)SIM.AuxBuffer, "%d", temp1_val);
-				at24_write(ADMIN_TEMP_IDX_EEPROM(admin_idx), (uint8_t*)SIM.AuxBuffer, 2, 1000); 
-			}
-			else{ 
-			  SIM.Alert.User_Numbers[user_idx].Temp_Diff = temp1_val;
-				sprintf((char*)SIM.AuxBuffer, "%d", temp1_val);
-				/* Set User's Alarm */
-				at24_write(USER_TEMP_IDX_EEPROM(user_idx), (uint8_t*)SIM.AuxBuffer, 2, 1000);	
-			}
-//			  char temp[USR_NUM_BYTES];
-
-//			at24_read(ADMIN_TEMP_IDX_EEPROM(admin_idx), (uint8_t*)temp, 2, 1000);  
-//			temp[2] = 0;
-//			char *end;
-//			SIM.Alert.Admin_Numbers[admin_idx].Temp_Diff = (uint8_t)(strtol((char*)temp, &end, 16));
-//			integer = strtol((char*)temp, &end, 16);
-			sprintf((char*)SIM.SMSBuffer,  "%s %dC\n", ans_P[SIM.Status.lang_set][SET_ALARM_CMD], temp1_val);
-			debugPrintln((char*)SIM.SMSBuffer);
-			break;
-
-	  case ALARM_ON_CMD:
-	  		
-			  admin_idx = SIM.Status.Active_Admin_Idx;
-	  		user_idx  = SIM.Status.Active_User_Idx;
-	  		alert_stat = 1;
-
-	  		/* Check if current sender is an Admin or a Normal user */
-	  		if(admin_idx >= 0) 
-	  		{ 
-		  		SIM.Alert.Admin_Numbers[admin_idx].Alert_Stat = alert_stat;
-					sprintf((char*)SIM.AuxBuffer, "%d", alert_stat);
-		  		at24_write(ADMIN_ALARM_IDX_EEPROM(admin_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);
-	  		}
-	  		else{ 
-		  		SIM.Alert.User_Numbers[user_idx].Alert_Stat = alert_stat;
-					sprintf((char*)SIM.AuxBuffer, "%d", alert_stat);
-		  		/* Set User's Alarm */
-		  		at24_write(USER_ALARM_IDX_EEPROM(user_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);	
-	  		}
-	  		if (alert_stat == 1)
-	  		{
-		  		SIM.Alert.AlertCounter_1 = HAL_GetTick();
-		  		SIM.Alert.AlertCounter_2 = HAL_GetTick();
-	  		}
-	  		sprintf((char*)SIM.SMSBuffer,  "%s \n", ans_P[SIM.Status.lang_set][ALARM_ON_CMD]);
-	  		debugPrintln((char*)SIM.SMSBuffer);
-	  		break;
-
-		case ALARM_OFF_CMD:
-	  		
-			admin_idx = SIM.Status.Active_Admin_Idx;
-	  		user_idx  = SIM.Status.Active_User_Idx;
-	  		alert_stat = 0;
-
-	  		/* Check if current sender is an Admin or a Normal user */
-	  		if(admin_idx >= 0) 
-	  		{ 
-		  		SIM.Alert.Admin_Numbers[admin_idx].Alert_Stat = alert_stat;
-					sprintf((char*)SIM.AuxBuffer, "%d", alert_stat);
-		  		at24_write(ADMIN_ALARM_IDX_EEPROM(admin_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);
-	  		}
-	  		else{ 
-		  		SIM.Alert.User_Numbers[user_idx].Alert_Stat = alert_stat;
-					sprintf((char*)SIM.AuxBuffer, "%d", alert_stat);
-		  		/* Set User's Alarm */
-		  		at24_write(USER_ALARM_IDX_EEPROM(user_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);	
-	  		}
-
-	  		sprintf((char*)SIM.SMSBuffer,  "%s \n", ans_P[SIM.Status.lang_set][ALARM_OFF_CMD]);
-	  		debugPrintln((char*)SIM.SMSBuffer);
-	  		break;
-						
-		case SET_LANG_CMD:
-	 	{
-			admin_idx = SIM.Status.Active_Admin_Idx;
-			user_idx  = SIM.Status.Active_User_Idx;
-			int lang_idx  = SIM.Status.lang_set;
-			sprintf((char*)SIM.SMSBuffer,  "%s set\n", lang[lang_idx]);
-			debugPrintln("setting Language");
-            
-			/* Check if current sender is an Admin or a Normal user */
-			if(admin_idx >= 0) 
-			{ 
-				SIM.Alert.Admin_Numbers[admin_idx].Lang = lang_idx;
-				sprintf((char*)SIM.AuxBuffer, "%d", lang_idx);
-				at24_write(ADMIN_LANG_IDX_EEPROM(admin_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);
-			}
-			else{ 
-			    SIM.Alert.User_Numbers[user_idx].Lang = lang_idx;
-				sprintf((char*)SIM.AuxBuffer, "%d", lang_idx);
-				/* Set User's Language */
-				at24_write(USER_LANG_IDX_EEPROM(user_idx), (uint8_t*)SIM.AuxBuffer, 1, 1000);	
-			}
-			
-			break;
-		}
-          
-		case WIND_CMD:
-			
-			sprintf((char*)SIM.SMSBuffer,  "%s: %.2f Km/hr\n", ans_N[SIM.Status.lang_set][WIND_CMD], wind_1);	//NO WIND
-			
-			break;
-		
-		case USRNUM_CMD:
-			getUserNumbers();
-			break;
-		
-		case ADD_CMD:	/* Add Number */
-			if(SIM_IsNumberAdmin(SIM.Status.MSG_Number) >= 0)	//WORKS ONLY IF COMMAND SENT FROM ADMIN PHONE NUMBERS
-			{
-				
-				if(SIM.Status.num_set < 10)
-				{
-					if((SIM.Alert.Alt_Number >= 1000000) && (SIM.Alert.Alt_Number < 1000000000000000))
-					{
-						if(!(SIM_IsNumberAdded(SIM.Alert.Alt_Number) >= 0))
-						{
-							/* Getting Number from SIM's AUX receiving buffer */
-							SIM.Alert.User_Numbers[SIM.Status.num_set].Number = SIM.Alert.Alt_Number;
-
-							sprintf((char*)SIM.AuxBuffer, "%llu", SIM.Alert.Alt_Number);
-							/* 3 = '2 + 1'. 2 is because max number of user are 10 and so we need two character to represent max num_set which is 10 
-							   1 is because we need to place lang set value at before user number 
-							   Structure <num_set lang_set1 user_number1 lang_set2 user_number2 .. .. ..>
-							   12 is because we have 12 digits in phone number and so need 12 characters */
-							at24_write(USER_NUM_IDX_EEPROM(SIM.Status.num_set), (uint8_t*)SIM.AuxBuffer, strlen((const char*)SIM.AuxBuffer), 1000);
-							SIM.Status.num_set++;
-							sprintf((char*)SIM.AuxBuffer,  "%d", SIM.Status.num_set);
- 							at24_write(AT24_USR_NUM_CNT_ADDR, (uint8_t*)SIM.AuxBuffer, strlen((const char*)SIM.AuxBuffer), 1000);
-
-							sprintf((char*)SIM.SMSBuffer,  "%llu %s \n", SIM.Alert.Alt_Number, ans_P[SIM.Status.lang_set][ADD_CMD]);
-							debugPrintln("Number successfully added..");
-						}
-						else
-						{
-							sprintf((char*)SIM.SMSBuffer, ans_N[SIM.Status.num_set][ADD_CMD]);
-							debugPrintln("NUmber is already added");
-						}
-					}
-					else {
-						sprintf((char*)SIM.SMSBuffer, "Number should be between 7 to 15 digits");
-						debugPrintln("NUmber is already added");
-					}
-				}
-				else
-				{
-					sprintf((char*)SIM.SMSBuffer,"Max Users 10");
-					debugPrintln("Mem full");
-				}
-			}
-			else {
-				sprintf((char*)SIM.SMSBuffer,"you don't have access,contact admin\n");
-				debugPrintln("you don't have access,contact admin");
-			}
-			break;
-						
-		case DELETE_CMD:	/* Delete Number */
-			if(SIM_IsNumberAdmin(SIM.Status.MSG_Number) >= 0)	/* WORKS ONLY IF COMMAND SENT FROM ADMIN PHONE NUMBERS */
-			{
-				SIM.Alert.numIndex = SIM_IsNumberAdded(SIM.Alert.Alt_Number);
-				
-				if(SIM.Alert.numIndex >= 0)
-				{
-					/* Check if number found is not stored at the end of the array then delete number and swap it with last number stored */
-					if (SIM.Alert.numIndex != SIM.Status.num_set)
-					{
-						for(uint8_t i = SIM.Alert.numIndex; i < SIM.Status.num_set; i++){
-							SIM.Alert.User_Numbers[i].Number = SIM.Alert.User_Numbers[i+1].Number;
-						}
-						SIM.Alert.User_Numbers[SIM.Status.num_set].Number = 0;
-						debugPrintln("Deleting number");
-						sprintf((char*)SIM.SMSBuffer, ans_P[SIM.Status.lang_set][DELETE_CMD]);
-                        
-                        /* Also swap number in EEprom */
-						sprintf((char*)SIM.AuxBuffer, "%llu", SIM.Alert.User_Numbers[SIM.Alert.numIndex].Number);
-						at24_write(USER_NUM_IDX_EEPROM(SIM.Alert.numIndex), (uint8_t*)0, 1, 1000);
-						sprintf((char*)SIM.AuxBuffer,  "%d", --(SIM.Status.num_set));
-						at24_write(AT24_USR_NUM_CNT_ADDR, (uint8_t*)SIM.AuxBuffer, strlen((const char*)SIM.AuxBuffer), 1000);
-					}
-					else
-					{
-						SIM.Alert.User_Numbers[SIM.Status.num_set].Number = 0;
-						at24_write(USER_NUM_IDX_EEPROM(SIM.Alert.numIndex), (uint8_t*)0, 1, 1000);
-						sprintf((char*)SIM.AuxBuffer,  "%d", --(SIM.Status.num_set));
-						at24_write(AT24_USR_NUM_CNT_ADDR, (uint8_t*)SIM.AuxBuffer, strlen((const char*)SIM.AuxBuffer), 1000);
-						debugPrintln("Deleting number e");
-						sprintf((char*)SIM.SMSBuffer,  ans_P[SIM.Status.lang_set][DELETE_CMD]);
-					}
-
-				}
-				else
-				{
-					sprintf((char*)SIM.SMSBuffer, ans_N[SIM.Status.num_set][DELETE_CMD]);
-					debugPrintln("Invalid Number");
-				}
-			}
-			break;
-		
-		case GET_LANG_CMD:
-		    sprintf((char*)SIM.SMSBuffer,  "%s %s\n", ans_P[SIM.Status.lang_set][GET_LANG_CMD], lang[SIM.Status.lang_set]); /* Get current set language */
-			debugPrintln("Currently Set Language is sent back to user");
-			break;
-		
-		case ALERT1_CMD:	//ALERT 1
-		    
-			if(vsen1 >= 12)
-			{
-				MachineState = STARTED;
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][0]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-			else {
-				if (MachineState == STARTED)
-				{
-					MachineState = STOPPED;
-					strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][1]);
-					strcat((char*)SIM.AlarmsBuffer, "\n");
-				}
-				else
-				{
-					MachineState = NOT_STARTED;
-				}
-
-				osDelay(10);//osDelay(1500);
-			}
-
-			if(gas_1 <= 40)
-			{
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][2]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-			if(vsen2 < 11)
-			{
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][8]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				debugPrintln((char*)SIM.AlarmsBuffer);
-				osDelay(10);//osDelay(1500);
-			}
-            
-			//temp1_val = temp_1;
-			temp2_val = temp_2;
-			wind1_val = wind_1;
-
-			SIM_SendAlertSMS((char*)SIM.AlarmsBuffer);
-//			debugPrintln("Resuming alarm task from alert1");
-//			if (AlarmBuffTaskHandle)
-//			{
-//				AlarmBuffQueue = true;
-//				osThreadResume(AlarmBuffTaskHandle);
-//			}
-//			osThreadSuspend(SIMBuffTaskHandle);
-			memset(SIM.AlarmsBuffer,0,sizeof SIM.AlarmsBuffer);
-			SIM.Alert.AlertCounter_1 = HAL_GetTick();
-			//AlarmBuffQueue = true;
-			break;
-						
-		case ALERT2_CMD:	//ALERT 2
-			if(temp_1 <= 2.0)
-			{
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][6]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-			if(SIM.Status.BatteryPercent <= 11)
-			{
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][3]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-			if(gas_1 <= 50.0)
-			{
-				char temp_gas[] = "";
-				sprintf(temp_gas,  "%s: %.2f%%\n", ans_N[SIM.Status.lang_set][command], gas_1);
-				strcat((char*)SIM.AlarmsBuffer, temp_gas);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-			if(wind_1 > 16.0)
-			{
-				char temp_wind[] = "";
-				sprintf(temp_wind,  "%s: %.2fKm/hr\n", ans_N[SIM.Status.lang_set][command], wind_1);
-				strcat((char*)SIM.AlarmsBuffer, temp_wind);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}
-		
-			/*if((temp_1 <= 40.0) || (temp_2 < 40.0))
-			{
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][8]);
-				strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			}*/
-
-			SIM_SendAlertSMS((char*)SIM.AlarmsBuffer);
-			//osThreadResume(AlarmBuffTaskHandle);
-			memset(SIM.AlarmsBuffer,0,sizeof SIM.AlarmsBuffer);
-			SIM.Alert.AlertCounter_2 = HAL_GetTick();
-			break;
-        
-		case STATE_GNRL_CMD:
-				{
-			admin_idx = SIM.Status.Active_Admin_Idx;
-			user_idx  = SIM.Status.Active_User_Idx;
-
-		    sprintf((char*)SIM.SMSBuffer,   "%s T2 = %d.%dC\n%s H2 = %d.%d%%\n%s T1 = %d.%dC\n %s H1 = %d.%d%% RH\n", 
-			     temp_hum[0][0], SHT2x_GetInteger(temp_1), SHT2x_GetDecimal(temp_1, 1),
-					 temp_hum[0][1], SHT2x_GetInteger(hum_1), SHT2x_GetDecimal(hum_1, 1),
-					 temp_hum[0][0], SHT2x_GetInteger(temp_2), SHT2x_GetDecimal(temp_2, 1),
-					 temp_hum[0][1], SHT2x_GetInteger(hum_2), SHT2x_GetDecimal(hum_2, 1));
-			
-			/* StateWM */		
-			if(vsen1 < 12)
-			{
-				strcat((char*)(SIM.SMSBuffer), ans_N[0][STATE_CMD]);
-			}
-			else
-			{
-				strcat((char*)(SIM.SMSBuffer), ans_P[0][STATE_CMD]);
-			}
-
-			strcat((char*)(SIM.SMSBuffer), "\n");
-	
-			
-			char temp_wind[] = "";
-			sprintf(temp_wind,  "%s: %.2f Km/hr", ans_N[0][WIND_CMD], wind_1);
-			strcat((char*)(SIM.SMSBuffer), temp_wind);
-			
-			
-			strcat((char*)(SIM.SMSBuffer), "\n");
-
-			 /* GAS */
-			char temp_gas[] = "";
-			sprintf(temp_gas,  "%s: %.2f %%", ans_N[0][GAS_CMD], gas_1);
-			strcat((char*)(SIM.SMSBuffer), temp_gas);
-			strcat((char*)(SIM.SMSBuffer), "\n");
-
-			/* Check if current sender is an Admin or a Normal user */
-			if(admin_idx >= 0) 
-			{ 
-				if (SIM.Alert.Admin_Numbers[admin_idx].Alert_Stat  == 1)
-				{
-					strcat((char*)(SIM.SMSBuffer), ans_P[0][ALARM_CMD]);
-				}
-				else
-				{
-					strcat((char*)(SIM.SMSBuffer), ans_N[0][ALARM_CMD]);
-				}
-				strcat((char*)(SIM.SMSBuffer), "\n");
-				sprintf(temp_str, "%s %dC", ans_P[0][SET_ALARM_CMD],SIM.Alert.Admin_Numbers[admin_idx].Temp_Diff);
-				strcat((char*)(SIM.SMSBuffer), temp_str);
-			}
-			else{ 
-				if (SIM.Alert.User_Numbers[user_idx].Alert_Stat  == 1)
-				{
-					strcat((char*)(SIM.SMSBuffer), ans_P[0][ALARM_CMD]);
-				}
-				else	
-				{
-					strcat((char*)(SIM.SMSBuffer), ans_N[0][ALARM_CMD]);
-				}
-			}
-			strcat((char*)(SIM.SMSBuffer), "\n");
-			
-			/* battery */
-			strcat((char*)(SIM.SMSBuffer), ans_P[0][BATTERY_CMD]);
-			sprintf(temp_str, "%0.2fV\n", vsen2);
-			debugPrintln(temp_str);
-			strcat((char*)(SIM.SMSBuffer), temp_str);
-			strcat((char*)(SIM.SMSBuffer), "\n");
-			
-			debugPrintln("Sending General State");
-			break;
-		}
-
-		case RELAY1_ON_CMD:
-			HAL_GPIO_WritePin(RLY_1_GPIO_Port, RLY_1_Pin, GPIO_PIN_SET);
-			sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_P[SIM.Status.lang_set][RELAY1_ON_CMD]);
-			debugPrintln("Relay1 is set");
-			break;
-		case RELAY1_OFF_CMD:
-			HAL_GPIO_WritePin(RLY_2_GPIO_Port, RLY_1_Pin, GPIO_PIN_RESET);
-			sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_N[SIM.Status.lang_set][RELAY1_OFF_CMD]);
-			debugPrintln("Relay1 is Reset");
-			break;
-		case RELAY2_ON_CMD:
-			HAL_GPIO_WritePin(RLY_1_GPIO_Port, RLY_2_Pin, GPIO_PIN_SET);
-			sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_P[SIM.Status.lang_set][RELAY2_ON_CMD]);
-			debugPrintln("Relay2 is set");
-			break;
-		case RELAY2_OFF_CMD:
-			HAL_GPIO_WritePin(RLY_2_GPIO_Port, RLY_2_Pin, GPIO_PIN_RESET);
-			sprintf((char*)SIM.SMSBuffer,  "%s\n", ans_N[SIM.Status.lang_set][RELAY2_OFF_CMD]);
-			debugPrintln("Relay2 is Reset");
-			break;
-		case RELAY1_CMD:	
-		    {
-				int gpio_pin_state = HAL_GPIO_ReadPin(RLY_1_GPIO_Port, RLY_1_Pin);
-					sprintf((char*)SIM.SMSBuffer,  "%s\n", (gpio_pin_state == 0) ? 
-					(ans_N[SIM.Status.lang_set][RELAY1_CMD]) : (ans_P[SIM.Status.lang_set][RELAY1_CMD]));
-				debugPrintln("Sending state of Relay1");
-			}
-				break;
-		case RELAY2_CMD:
-			{
-				int gpio_pin_state = HAL_GPIO_ReadPin(RLY_2_GPIO_Port, RLY_2_Pin);
-				sprintf((char*)SIM.SMSBuffer,  "%s\n", (gpio_pin_state == 0) ? 
-				(ans_N[SIM.Status.lang_set][RELAY2_CMD]) : (ans_P[SIM.Status.lang_set][RELAY2_CMD]));
-				debugPrintln("Sending state of Relay2");
-			}
-			break;
-		case HELP_CMD:
-		default:
-			sprintf((char*)(SIM.SMSBuffer),  "%s\n ", cmd[SIM.Status.lang_set][0]);
-			for (int i = 1; i <= HELP_CMD; i++)
-			{
-				strcat((char*)(SIM.SMSBuffer), cmd[SIM.Status.lang_set][i]);
-				strcat((char*)(SIM.SMSBuffer), "\n");
-			}
-			debugPrintln("Invalid Command");
-			break;
-    }
-	
-	if(SIM.Status.MSG_Valid == 0)
-	{
-		SIM.Status.MSG_CMD = LAST_CMD_IDX;
-	}
-	
-  	if (command != ALERT1_CMD)
-	{
-		SIM_SendSMS((char*)SIM.SMSBuffer,1);
-	}
-  	//  SIM.Status.MSG_Valid = 0;
-  	memset(SIM.SMSBuffer,0,sizeof SIM.SMSBuffer);
-  	memset(SIM.AuxBuffer,0,sizeof SIM.AuxBuffer);
-  	osDelay(500);
-  	return 1;
-}
-
-//********************************************************************************************************************//
-uint64_t number[3] = {923216969610, 923164933, 923216969610456};
-	uint8_t num_set = 0;
-	char AuxBuffer[16] = {0};
-void    SIM_SetLang(void)
-{
-//  uint8_t *set_lang;
-//  at24_read(0, set_lang, 2, 1000);
-//  SIM.Status.lang_set = atoi((char*)set_lang);  
-
-	at24_eraseChip();
-
-	for (int i = 0; i < 3; i++)
-	{
-//		sprintf((char*)(AuxBuffer), "%llu",number[i]);
-//		at24_write(USER_NUM_IDX_EEPROM(num_set), (uint8_t*)AuxBuffer, strlen((const char*)AuxBuffer), 1000);
-//		num_set++;
-//		sprintf((char*)AuxBuffer,  "%d", num_set);
-		
-//		at24_write(AT24_USR_NUM_CNT_ADDR, (uint8_t*)AuxBuffer, strlen((const char*)AuxBuffer), 1000);
-//		sprintf((char*)AuxBuffer, "%d",i);
-//		at24_write(USER_LANG_IDX_EEPROM(i), (uint8_t*)AuxBuffer, 1, 1000);
-		
-		sprintf((char*)AuxBuffer, "%d",i);
-		at24_write(ADMIN_LANG_IDX_EEPROM(i), (uint8_t*)AuxBuffer, 1, 1000);
-		sprintf((char*)AuxBuffer, "%d",i);
-		at24_write(ADMIN_ALARM_IDX_EEPROM(i), (uint8_t*)AuxBuffer, 1, 1000);
-		sprintf((char*)AuxBuffer, "%d",i);
-		at24_write(ADMIN_TEMP_IDX_EEPROM(i), (uint8_t*)AuxBuffer, 1, 1000);
-	}
-}
-
-//********************************************************************************************************************//
-void    SIM_SetNum(void)
-{
-  char temp[USR_NUM_BYTES];
-  char *end_ptr;
-	SIM.Status.num_set = 0;
-  at24_read(AT24_USR_NUM_CNT_ADDR, (uint8_t*)temp, 2, 1000);
-  SIM.Status.num_set = atoi((char*)temp);
-  for(int i = 0; i < SIM.Status.num_set; i++)
-  {
-	/* Get User Number */
-    at24_read(USER_NUM_IDX_EEPROM(i), (uint8_t*)temp, 15, 1000);
-	SIM.Alert.User_Numbers[i].Number = strtoull((char*)temp, &end_ptr, 10);
-    
-	/* Get User's Language */
-	at24_read(USER_LANG_IDX_EEPROM(i), (uint8_t*)temp, 15, 1000);
-	SIM.Alert.User_Numbers[i].Lang = atoi((char*)temp);
-    
-	/* Get User's Alarm value */
-	at24_read(USER_ALARM_IDX_EEPROM(i), (uint8_t*)temp, 15, 1000);
-	SIM.Alert.User_Numbers[i].Alert_Stat = atoi((char*)temp);
-
-	/* Get User's Alarm value */
-	at24_read(USER_TEMP_IDX_EEPROM(i), (uint8_t*)temp, 15, 1000);
-	SIM.Alert.User_Numbers[i].Temp_Diff = atoi((char*)temp);
-  }
-
-  /* Get Admin's language settings */
-  for (int i = 0; i < 8; i++)
-  {
-	/* Get admin language */
-	at24_read(ADMIN_LANG_IDX_EEPROM(i), (uint8_t*)temp, 2, 1000);
-	SIM.Alert.Admin_Numbers[i].Lang = atoi((char*)temp);
-
-    /* Get Admin Alarm value */
-	at24_read(ADMIN_ALARM_IDX_EEPROM(i), (uint8_t*)temp, 2, 1000);
-	SIM.Alert.Admin_Numbers[i].Alert_Stat = atoi((char*)temp);
-
-	/* Get User's Alarm value */
-	at24_read(ADMIN_TEMP_IDX_EEPROM(i), (uint8_t*)temp, 2, 1000);
-	SIM.Alert.Admin_Numbers[i].Temp_Diff = atoi((char*)temp);
-  }
-}
-//********************************************************************************************************************//
-void  SIM_SendAlertSMS(char *str)
-{
-	/* Send Alert SMS to all the Admin Numbers */
-	for (int i = 0; i < sizeof(SIM.Alert.Admin_Numbers); i++)
-	{
-		SIM.Alert.Alt_Number = SIM.Alert.Admin_Numbers[i].Number;
-		/* Check for null numbers */
-		if((SIM.Alert.Alt_Number) && (SIM.Alert.Admin_Numbers[i].Alert_Stat == 1))
-		{          
-		  /* Check if use needs alert for temprature or not */
-		  if(temp1_val <= (SIM.Alert.Admin_Numbers[i].Temp_Diff + 1))
-		  {
-			  if ((temp2_val - temp1_val) < 1)
-			  {
-		  		strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][4]);
-		  		strcat((char*)SIM.AlarmsBuffer, "\n");
-		  		osDelay(10);//osDelay(1500);
-			  }
-
-			  if ((wind1_val < 15) && (WindyCond == true))
-			  {
-				WindyCond = false;
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][6]);
-		  		strcat((char*)SIM.AlarmsBuffer, "\n");
-		  		osDelay(10);//osDelay(1500);
-			  }
-			  else if (wind1_val>= 15)
-			  {
-				WindyCond = true;
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][5]);
-		  		strcat((char*)SIM.AlarmsBuffer, "\n");
-		  		osDelay(10);//osDelay(1500);
-			  }
-		  }
-
-		  if (temp1_val < SIM.Alert.Admin_Numbers[i].Temp_Diff)
-		  {
-			  if(MachineState == NOT_STARTED)
-			  {
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][2]);
-		  		strcat((char*)SIM.AlarmsBuffer, "\n");
-				osDelay(10);//osDelay(1500);
-			  }
-			  else if (MachineState == STOPPED) 
-			  {
-				strcat((char*)SIM.AlarmsBuffer, alarm[SIM.Status.lang_set][3]);
-		  		strcat((char*)SIM.AlarmsBuffer, "\n");
-		  		osDelay(10);//osDelay(1500);
-			  }
-		  }
-
-		  SIM_SendSMS(str, 0);    /*trim down string in case of temp_diff condition not met */
-		}
-	}
-
-	/* Send Alert SMS to all the User Numbers */
-	for (int i = 0; i < SIM.Status.num_set; i++)
-	{
-		/* Check for null numbers */
-		if((SIM.Alert.Alt_Number) && (SIM.Alert.User_Numbers[i].Alert_Stat == 1))
-		{
-		  SIM.Alert.Alt_Number = SIM.Alert.User_Numbers[i].Number;
-		  SIM_SendSMS(str, 0);
-		}
-	}
-}
-
-
-
-//**************************only******************************************************************************************//
-void    SIM_SendSMS(char *str, int i)
-{
-	char aux[5];
-	SIM_SendAtCommand("AT+CMGF=1\r\n",200,"OK");
-	SIM_SendAtCommand("AT+CSCS=\"GSM\"\r\n",200,"OK");
-	if(i == 0)
-	{
-		snprintf((char*)SIM.AuxBuffer, sizeof(SIM.AuxBuffer),"AT+CMGS=\"+%llu\"\r",SIM.Alert.Alt_Number);
-		if(SIM_SendAtCommand((char*)SIM.AuxBuffer,5000,"> "))
-		{
-			osDelay(500);//1500
-			
-			SIM_SendString(str);
-			
-		}
-	}
-	else
-	{
-		snprintf((char*)SIM.AuxBuffer, sizeof(SIM.AuxBuffer),"AT+CMGS=\"+%llu\"\r",SIM.Status.MSG_Number);
-		if(SIM_SendAtCommand((char*)SIM.AuxBuffer,5000,"> "))
-		{
-			osDelay(500);//1500
-			SIM_SendString(str);
-		}
-	}
-	osDelay(100);
-	snprintf(aux, sizeof(aux),"%c%c",0X1A,0X1A);
-	osDelay(3000);
-	if(SIM_SendAtCommand(aux,5000,"\r\n+CMGS"))
-	{
-		debugPrintln("MESS SENT");
-		
-	}
-}
-//********************************************************************************************************************//
 void	SIM_Init(osPriority Priority)
 {
 
@@ -1112,6 +371,7 @@ void	SIM_Init(osPriority Priority)
 
 		}else{
 				debugPrintln("SIM RESPONSE NOT OK");
+				SIM7600_RESET();
 		}
     osDelay(200);
   
@@ -1123,6 +383,7 @@ void	SIM_Init(osPriority Priority)
 //##################################################
 void  SIM_BufferProcess(void)
 {
+	
 	if(Vsense_1<=5){
 			strcpy(ARMED_STATUS, "DISARMED");
 			}else if(Vsense_1>=10){
@@ -1243,122 +504,163 @@ void  SIM_BufferProcess(void)
 	}
 	//receive and send message
 	 // if new message arrived, read the message
-	str1 = strstr(strStart, "\n+CMTI: ");
-			while (1){
-      if( sscanf(strStart, "\n+CMTI: " PREF_SMS_STORAGE ",%hhd", &slot)==1)
-      {
-				
-				
-				ACCESS = false;
-				debugPrintln("find cmti");
-        sprintf(ATcommandd,"AT+CMGRD=%d\r\n",slot);
-        SIM_SendString(ATcommandd); 
-				
-				
-      }
-			else if (strstr(strStart,"\nhi smav"))
-      {
-				
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				sprintf(ATcommandd, "Hi,how can i help you?%c",0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-      }
-      // if message read contains "ledon", switch the LED ON
-      else if (strstr(strStart,"\nARM"))
-      {
-				
-				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-				relayState = true; // Update the relay state
-				ACCESS = true;
-      }
-      // if message read contains "ledoff", switch the LED OFF
-      else if (strstr(strStart,"\nDISARM"))
-      {
-        
-				HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
-				HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-				relayState = false; // Update the relay state
-				ACCESS = true;
-      }
-			else if (strstr(strStart,"\ndiagnostic"))
-      {
-				
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				sprintf(ATcommandd, "Diagnostic:\n-Rssi=%s\n-Operator=%s\n-Lora module=%s\n%c", rssiString, operatorName, Module_Status,0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-			}
-			else if (strstr(strStart,"\nweather high"))
-      {
-			
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
-				sprintf(ATcommandd, "T1=%.2f°C\nH1=%.2f%%\n%c",temperature1,humidity1,0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-			}else if (strstr(strStart,"\nweather low"))
-      {
-			
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
-				sprintf(ATcommandd, "T2=%.2f°C\nH2=%.2f%%\n%c",temperature2,humidity2,0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-			}else if (strstr(strStart,"\nwind speed"))
-      {
-			
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
-				sprintf(ATcommandd, "W_S=%.2fKm/h%c",Wind_stat,0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-			}
-			else if (strstr(strStart,"\nmachine"))
-      {
-				SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-				sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-				SIM_SendString(ATcommandd);
-				sprintf(ATcommandd, "-Battery=%.2f\n-Machine_Status:%s%c",Vsense_2, ARMED_STATUS,0x1a);
-				SIM_SendString(ATcommandd);
-				memset(ATcommandd,NULL,sizeof(ATcommandd));	
-				ACCESS = true;
-			}
-      // This will delete all messages in the SIM card. (Is it ok for you?)
-      else if (strstr(strStart,"RESET"))
-      {
-					SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-					sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
-					SIM_SendString(ATcommandd);
-					sprintf(ATcommandd, "OK,the device will restart now%c",0x1a);
-					SIM_SendString(ATcommandd);
-					memset(ATcommandd,NULL,sizeof(ATcommandd));	
-					osDelay(4000);
-          NVIC_SystemReset();
-				
-      }else{
-				ACCESS = true;
-			}
-				break;
-			}
+
+					 if( sscanf(strStart, "\n+CMTI: " PREF_SMS_STORAGE ",%hhd", &slot)==1)
+					{
+							SMS_mode = true;
+							debugPrintln("find cmti");
+							sprintf(ATcommandd,"AT+CMGRD=%d\r\n",slot);
+							SIM_SendString(ATcommandd);
+									 
+						}
+						else if (strstr(strStart,"hi smav"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Hi,how can i help you?%c",0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n");
+									//sendDataTaskRunning = false;	
+								}
+								else if (strstr(strStart,"\nARM"))
+								{
+										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
+										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
+										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
+										ACCESS = false;
+										relayState=true;
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Machine is now armed%c",0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										//SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										//SIM_SendString("AT+CMGD=,4\r\n");
+									//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\nDISARM"))
+								{
+										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
+										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
+										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
+										ACCESS = false;
+										relayState=false;
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Machine is now disarmed%c",0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd));
+										//SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										//SIM_SendString("AT+CMGD=,4\r\n");
+										//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\ndiagnostic"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Diagnostic:\n-Rssi=%s\n-Operator=%s\n-Lora module=%s\n%c", rssiString, operatorName, Module_Status,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n");
+										//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\nweather high"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+										sprintf(ATcommandd, "T1=%.2f°C\nH1=%.2f%%\n%c",temperature1,humidity1,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n");
+										//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\nweather low"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+										sprintf(ATcommandd, "T2=%.2f°C\nH2=%.2f%%\n%c",temperature2,humidity2,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n");
+									//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\nwind speed"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										//sprintf(ATcommandd, "T1=%.2f°C\nT2=%.2f°C\nH1=%.2f\nH2=%.2f\nW_S=%.2f%c",temperature1, temperature2, humidity1, humidity2, Wind_stat,0x1a);
+										sprintf(ATcommandd, "W_S=%.2fKm/h%c",Wind_stat,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n");
+									//sendDataTaskRunning = false;
+								}
+								else if (strstr(strStart,"\nmachine"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n"); 
+									//sendDataTaskRunning = false;
+								}else if (strstr(strStart,"\nbattery"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "Battery=%.2f%c",Vsense_2,0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										ACCESS = false;
+										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+										SIM_SendString("AT+CMGD=,4\r\n"); 
+									//sendDataTaskRunning = false;
+								}
+								// This will delete all messages in the SIM card. (Is it ok for you?)
+								else if (strstr(strStart,"RESET"))
+								{
+										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+										SIM_SendString(ATcommandd);
+										sprintf(ATcommandd, "OK,the device will restart now%c",0x1a);
+										SIM_SendString(ATcommandd);
+										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+										osDelay(4000);
+										NVIC_SystemReset();
+								}else {
+									
+									//sendDataTaskRunning = false;
+
+								}
+
+		
+					
+					
+		
   //Thingsboard Section
 	str1 = strstr(strStart, "\r\nRING");
 if (str1 != NULL)
@@ -1371,13 +673,35 @@ if (str1 != NULL)
 	HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
+		// send feedback message to client
+		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+		sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+		SIM_SendString(ATcommandd);
+		sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
+		SIM_SendString(ATcommandd);
+		memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+		ACCESS = false;
+		SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+		SIM_SendString("AT+CMGD=,4\r\n"); 
 		relayState=true;
+		SMS_mode = true;
 		
 	}else if(relayState==true){
 		HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
+			// send feedback message to client
+			SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+			sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
+			SIM_SendString(ATcommandd);
+			sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
+			SIM_SendString(ATcommandd);
+			memset(ATcommandd,NULL,sizeof(ATcommandd)); 
+			ACCESS = false;
+			SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
+			SIM_SendString("AT+CMGD=,4\r\n"); 		
 		relayState=false;
+		SMS_mode = true;
 	}
 }
 str1 = strstr(strStart, "\"shared\"");
@@ -1403,7 +727,7 @@ if (str1 != NULL)
                 //str1 += 1;
                 // Read the boolean value at specified position
 						debugPrintln(str1);
-                if (*str1 == 't' && rpc_status == false) // Assuming 't' for true, 'f' for false
+                if (*str1 == 't' ) // Assuming 't' for true, 'f' for false
                 {
                     debugPrintln("+++++++++++++++++++++++++++++++++++++++RELAY ON+++++++++++++++++++++++++++++++++++++++++++++++++");
                     ledStatus = 1;
@@ -1416,7 +740,7 @@ if (str1 != NULL)
 										relayState = true; // Update the relay state
                     //Previous_rpc_status=rpc_status;
                 }
-                else if (*str1 == 'f' && rpc_status == true)
+                else if (*str1 == 'f' )
                 {
                     debugPrintln("+++++++++++++++++++++++++++++++++++++++RELAY OFF+++++++++++++++++++++++++++++++++++++++++++++++++");
                     ledStatus = 0;
@@ -1574,7 +898,7 @@ if (str1 != NULL)
 
         // Transmit the signal strength over UART
         //HAL_UART_Transmit(&huart2, (uint8_t *) signalString, strlen(signalString), 100);
-
+				
         // Decode RSSI value to dBm
         if (rssiValue >= 2 && rssiValue <= 9)
         {
@@ -1635,106 +959,7 @@ if (str1 != NULL)
     SIM.Status.BatteryVoltage = atof(str1);      
   }
 
-//********************************************************************************************************************//
-	str1 = strstr(strStart,"\r\n+CMT:");
-  if(str1!=NULL)
-  {
-		str1 = strchr(str1,'\"');
-					str1++;
-					str1++;
-					SIM.Status.MSG_Number = atoll(str1); // Read the cellphone number of who requested the information
-		
-		//CHECK PHONE NUMBER FIRST
-		int admin_idx = SIM_IsNumberAdmin(SIM.Status.MSG_Number);
-		int user_idx  = SIM_IsNumberAdded(SIM.Status.MSG_Number);
-		if( (admin_idx >= 0) || (user_idx >= 0))
-		{
-			/* Set system language according to the user defined language */
-			SIM.Status.lang_set = (admin_idx >= 0) ? (SIM.Alert.Admin_Numbers[admin_idx].Lang) : (SIM.Alert.User_Numbers[user_idx].Lang);
 
-			/* Reset Index for next command */
-			SIM.Status.Active_Admin_Idx = admin_idx;
-			SIM.Status.Active_User_Idx  = user_idx;
-
-			char **eng_cmd;
-			/* Check if language is other than english the also accept english language as english is universal labguage in our case */
-			if (SIM.Status.lang_set != 0)
-			{
-				/* get english command queue */
-				eng_cmd = cmd[0];  	
-			}
-
-			/* Run loop for all commands currenlty registered within the system, as size of cmd_en depicts the size of command array */
-			for(int w = 0; w < (sizeof(cmd_en) / sizeof(char*)) ; w++)
-			{
-				str1 = mystristr(strStart, cmd[SIM.Status.lang_set][w]);
-				char *str2;
-				/* check if eng_cmd array ptr is set */
-				if (eng_cmd)
-				{
-					/* check incoming command if it's in english */
-					str2 = mystristr(strStart, eng_cmd[w]);	
-				}
-
-				if((str1 != NULL) || (str2 != NULL))
-				{
-					SIM.Status.MSG_CMD = w;
-					debugPrintln(cmd[SIM.Status.lang_set][w]);
-					SIM.Status.MSG_Valid = 1;
-					break;
-				}
-				SIM.Status.MSG_CMD = ERROR_CMD;
-				SIM.Status.MSG_Valid = 1;
-			}
-						
-			if(SIM.Status.MSG_CMD == SET_LANG_CMD)
-			{
-				for(int w = 0; w < 4; w++)
-				{
-					str1 = mystristr(strStart, lang[w]);
-					if(str1!=NULL)
-					{
-						SIM.Status.lang_set = w;
-						break;
-					}
-				}
-			}
-			/**/
-			else if((SIM.Status.MSG_CMD == ADD_CMD) || (SIM.Status.MSG_CMD == DELETE_CMD))	/* ADD NUMBER || Delete Number Z */
-			{
-				debugPrintln(str1);
-				char *pNumber;
-				pNumber = strchr(str1,'+');
-				str1++;
-				
-				SIM.Alert.Alt_Number = atoll(pNumber++);
-				debugPrintln(str1);
-				debugPrintln(pNumber);
-
-			}
-			/**/
-			else if (SIM.Status.MSG_CMD == SET_ALARM_CMD )
-			{
-				str1 = mystristr(str1, "Alarm");
-				str1 += 6;
-				char *str_cop = mystristr(str1, "C"); /* Set Alarm x°C*/
-				if (str_cop)
-				{
-					*str_cop = 0;
-					str_cop--;
-					*str_cop = 0;
-				}
-				temp1_val = atoi(str1);
-			}
-		}
-		else
-		{
-			
-			debugPrintln("Stop texting me please..!");
-		}
-  }
-  
-//********************************************************************************************************************//
   if(SIM.AtCommand.ReceiveAnswer[0]==0)
   {
     SIM.AtCommand.FindAnswer=0;
@@ -1759,7 +984,7 @@ void StartSIMBuffTask(void const * argument)
   debugPrintln("Buffer start");
   while(1)
   {
-    if( ((SIM.UsartRxIndex>4) && (HAL_GetTick()-SIM.UsartRxLastTime > 30)))
+    if( ((SIM.UsartRxIndex>4) && (HAL_GetTick()-SIM.UsartRxLastTime > 50)))
     {
       SIM.BufferStartTime = HAL_GetTick();      
       SIM_BufferProcess();      
