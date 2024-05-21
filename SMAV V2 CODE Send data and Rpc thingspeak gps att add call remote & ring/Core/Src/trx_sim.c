@@ -8,7 +8,9 @@
 #include "at24cxx.h" 
 #include "main.h"
 #include <ctype.h>
-
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
 void NVIC_SystemReset(void); // Assuming this function exists for microcontroller reset
 //-----------------------------§VARIABLES FOR SENSORS from frertos.c§--------------------        					//variable to store adc raw values
 extern float Vsense_1;                        	//variable to store Voltage sensor 1
@@ -25,21 +27,14 @@ extern float humidity2;
 extern bool sendDataTaskRunning;
 extern char 	Module_Status[50];
 //--------------------------------------------------------------------------
-bool ACCESS;
-char SMAV_NETWORK_STATUS[20];  // Enter the Mobile Number you want to send to
-bool SMS_mode=false;
-// Declaration of SIM_Status_OK function
-uint8_t SIM_Status_OK(char *response);
 // Function declaration
-uint8_t SIM_SendAtCommande(char *command, uint32_t timeout_ms, char *response, uint32_t response_size);
 uint8_t slot = 0;
 #define PREF_SMS_STORAGE "\"SM\""
 char ATcommandd[500];
-char mobileNumber[] = "+212771101564";  // Enter the Mobile Number you want to send to
+char mobileNumber[20];  // Enter the Mobile Number you want to send to
 uint8_t i=0;
 #define SUCCESS 1
 #define FAILURE 0
-char temp_str[20]; 
 char ARMED_STATUS[10];
 bool relayState = false; // Initialize the relay state
 
@@ -53,19 +48,14 @@ char functionalityStatus[50]; // Assuming maximum 50 characters for the function
 char operatorName[50]; // Assuming maximum 50 characters for the operator name
 int rssiValue, berValue;
 
-char *token;
-char *saveptr; // Required for strtok_r
-char lat[20], lon[20];
+float latitudeDecimal;
+float longitudeDecimal;
 
-bool rpc_status=true;
-bool Previous_rpc_status=true;
-bool fonction_control=true;
-bool prev_fonction_control=true;
 SIM_t      		SIM;
 osThreadId 		SIMBuffTaskHandle;
 osThreadId		AlarmBuffTaskHandle;
 bool            AlarmBuffQueue;
-void 	        StartSIMBuffTask(void const * argument);
+void 	        	StartSIMBuffTask(void const * argument);
 void            StartAlarmBuffTask(void const * argument);
 uint8_t         LastCmdIdx = LAST_CMD_IDX;
 uint8_t         Alert1Cmd = ALERT1_CMD;
@@ -75,13 +65,16 @@ bool            WindyCond = false;
 uint8_t         ledStatus = 0;
 
 
+typedef struct {
+    float latitude;
+    char latDirection;
+    float longitude;
+    char lonDirection;
+} Coordinates;
 
-enum Machine_State{
-	STARTED = 1,
-	NOT_STARTED,
-	STOPPED,
-	MACHINE_ERROR,
-};
+
+
+
 
 
 /********************************************
@@ -194,54 +187,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 //********************************************************************************************************************// 
-uint8_t SIM_SendAtCommande(char *command, uint32_t timeout_ms, char *response, uint32_t response_size) {
-    // Clear the response buffer
-    memset(response, 0, response_size);
-
-    // Send the command
-    HAL_UART_Transmit(&_SIM_USART, (uint8_t*)command, strlen(command), HAL_MAX_DELAY);
-
-    // Wait for the response
-    uint32_t start_time = HAL_GetTick();
-    uint32_t response_index = 0;
-    while ((HAL_GetTick() - start_time) < timeout_ms) {
-        // Check if data is available to read
-        if (HAL_UART_Receive(&_SIM_USART, (uint8_t*)(response + response_index), 1, 100) == HAL_OK) {
-            // Move to the next position in the response buffer
-            response_index++;
-            // Check if the response buffer is full
-            if (response_index >= response_size) {
-                break;
-            }
-            // Check if the response ends with "\r\nOK\r\n"
-            if (strstr(response, "\r\nOK\r\n") != NULL) {
-                // Check SIM status if OK
-                if (SIM_Status_OK(response)) {
-                    // Print "SIM is OK"
-                    HAL_UART_Transmit(&huart2, (uint8_t *)"SIM is OK\n", strlen("SIM is OK\n"), 100);
-                    return SUCCESS; // Command successful and SIM status OK
-                } else {
-                    // Print "SIM is not OK"
-                    HAL_UART_Transmit(&huart2, (uint8_t *)"SIM is not OK\n", strlen("SIM is not OK\n"), 100);
-                    return FAILURE; // Command successful but SIM status not OK
-                }
-            }
-        }
-    }
-
-    // Timeout or response buffer is full
-    return FAILURE; // Command failed
-}
-
-// Function to check if SIM status is OK based on response
-uint8_t SIM_Status_OK(char *response) {
-    // Check if response contains "OK"
-    if (strstr(response, "OK") != NULL) {
-        return SUCCESS; // SIM status OK
-    } else {
-        return FAILURE; // SIM status not OK
-    }
-}
 uint8_t     SIM_SendAtCommand(char *AtCommand,int32_t  MaxWaiting_ms,char *Answer)
 {
   while(SIM.Status.Busy == 1)
@@ -378,6 +323,50 @@ void	SIM_Init(osPriority Priority)
   SIM_SetPower(true);
 }
 
+
+// Function to parse the NMEA string
+Coordinates parseNMEA(char* nmea) {
+    Coordinates coords;
+    char* token = strtok(nmea, ",");
+
+    // Extract latitude
+    if (token != NULL) {
+        coords.latitude = atof(token);
+        token = strtok(NULL, ",");
+    }
+
+    // Extract latitude direction
+    if (token != NULL) {
+        coords.latDirection = token[0];
+        token = strtok(NULL, ",");
+    }
+
+    // Extract longitude
+    if (token != NULL) {
+        coords.longitude = atof(token);
+        token = strtok(NULL, ",");
+    }
+
+    // Extract longitude direction
+    if (token != NULL) {
+        coords.lonDirection = token[0];
+        token = strtok(NULL, ",");
+    }
+
+    return coords;
+}
+
+// Function to convert DMS to decimal degrees
+float convertDMSToDecimal(float dms, char direction) {
+    int degrees = (int)(dms / 100);   // Extract degrees
+    float minutes = fmod(dms, 100);   // Extract minutes
+    float decimal = degrees + (minutes / 60.0);
+    if (direction == 'S' || direction == 'W') {
+        decimal = -decimal;
+    }
+    return decimal;
+}
+
 //##################################################
 //---       Buffer Process
 //##################################################
@@ -390,94 +379,11 @@ void  SIM_BufferProcess(void)
 			strcpy(ARMED_STATUS, "ARMED");
 			}
 	char      *strStart,*str1;
-	//char *strStart, *str1, *field1_value;
   int32_t   tmp_int32_t;
-  //char      tmp_str[16];
 	
-  strStart = (char*)&SIM.UsartRxBuffer[0];  
-  //##################################################
-  //+++       Buffer Process
-  //################################################## OK
-	//debugPrintln("-------------------------------------SIM_BufferProcessold-----------------------------------------");
-	// here we will process the LED status
-	// try to find the END of the json string
-	// Find the start of the "field1" value
-   // Find the start of the "feeds" array
-    const char *feeds_pos = strstr(strStart, "\"feeds\":");
-    if (feeds_pos != NULL) {
-        // Move to the start of the array
-        feeds_pos += strlen("\"feeds\":");
+  strStart = (char*)&SIM.UsartRxBuffer[0];
 
-        // Find the start of the last entry
-        const char *last_entry_pos = strstr(feeds_pos, "{");
-        if (last_entry_pos != NULL) {
-            // Initialize a variable to store the last field1 value
-            int last_field1_value = -1; // Initialize with an invalid value
-
-            // Loop through the entries in reverse order
-            while (true) {
-                // Find the start of the next entry
-                const char *next_entry_pos = strstr(last_entry_pos + 1, "{");
-                if (next_entry_pos == NULL) {
-                    // Last entry reached
-                    break;
-                }
-
-                // Find the end of the entry
-                const char *end_pos = strstr(next_entry_pos, "}");
-                if (end_pos == NULL) {
-                    // Invalid entry format
-                    break;
-                }
-
-                // Extract the value of "field1" from the entry
-                const char *field1_pos = strstr(next_entry_pos, "\"field1\":\"");
-                if (field1_pos != NULL && field1_pos < end_pos) {
-                    field1_pos += strlen("\"field1\":\"");
-                    const char *end_field1_pos = strchr(field1_pos, '"');
-                    if (end_field1_pos != NULL && end_field1_pos < end_pos) {
-                        int value_length = end_field1_pos - field1_pos;
-                        char field1_value[value_length + 1];
-                        strncpy(field1_value, field1_pos, value_length);
-                        field1_value[value_length] = '\0';
-
-                        // Convert field1_value to an integer
-                        int value = atoi(field1_value);
-
-                        // Update the last_field1_value with the value of "field1" from this entry
-                        last_field1_value = value;
-                    }
-                }
-
-                // Move to the next entry
-                last_entry_pos = next_entry_pos;
-            }
-
-            // Process the last_field1_value
-            if (last_field1_value != -1) {
-                // Update LED status based on the last_field1_value
-                if (last_field1_value == 0) {
-                    // Turn on LED
-                    debugPrintln("+++++++++++++++++++++++++++++++++++++++RELAY OFF+++++++++++++++++++++++++++++++++++++++++++++++++");
-										ledStatus = 0;
-										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
-										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
-										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-
-                } else  if (last_field1_value == 1) {
-                    // Turn off LED
-										debugPrintln("+++++++++++++++++++++++++++++++++++++++RELAY ON+++++++++++++++++++++++++++++++++++++++++++++++++");
-										ledStatus = 1;
-										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
-										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
-										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-
-                }
-            } else {
-                debugPrintln("No valid entry found.");
-            }
-        }
-    }
+			
 			str1 = strstr(strStart, "\r\n+HTTPACTION:");
 	if (str1 != NULL)
 	{
@@ -507,7 +413,7 @@ void  SIM_BufferProcess(void)
 
 					 if( sscanf(strStart, "\n+CMTI: " PREF_SMS_STORAGE ",%hhd", &slot)==1)
 					{
-							SMS_mode = true;
+						
 							debugPrintln("find cmti");
 							sprintf(ATcommandd,"AT+CMGRD=%d\r\n",slot);
 							SIM_SendString(ATcommandd);
@@ -521,7 +427,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "Hi,how can i help you?%c",0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+										
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n");
 									//sendDataTaskRunning = false;	
@@ -531,7 +437,7 @@ void  SIM_BufferProcess(void)
 										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
 										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
 										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-										ACCESS = false;
+										
 										relayState=true;
 										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
 										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
@@ -548,7 +454,7 @@ void  SIM_BufferProcess(void)
 										HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
 										HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
 										HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-										ACCESS = false;
+										
 										relayState=false;
 										SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
 										sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
@@ -568,7 +474,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "Diagnostic:\n-Rssi=%s\n-Operator=%s\n-Lora module=%s\n%c", rssiString, operatorName, Module_Status,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+										
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n");
 										//sendDataTaskRunning = false;
@@ -582,7 +488,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "T1=%.2f°C\nH1=%.2f%%\n%c",temperature1,humidity1,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+										
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n");
 										//sendDataTaskRunning = false;
@@ -596,7 +502,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "T2=%.2f°C\nH2=%.2f%%\n%c",temperature2,humidity2,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+										
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n");
 									//sendDataTaskRunning = false;
@@ -610,7 +516,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "W_S=%.2fKm/h%c",Wind_stat,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+										
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n");
 									//sendDataTaskRunning = false;
@@ -623,7 +529,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+									
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n"); 
 									//sendDataTaskRunning = false;
@@ -635,7 +541,7 @@ void  SIM_BufferProcess(void)
 										sprintf(ATcommandd, "Battery=%.2f%c",Vsense_2,0x1a);
 										SIM_SendString(ATcommandd);
 										memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-										ACCESS = false;
+								
 										SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 										SIM_SendString("AT+CMGD=,4\r\n"); 
 									//sendDataTaskRunning = false;
@@ -677,14 +583,13 @@ if (str1 != NULL)
 		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
 		sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
 		SIM_SendString(ATcommandd);
-		sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
+		sprintf(ATcommandd, "Machine_Status: ARMED%c",0x1a);
 		SIM_SendString(ATcommandd);
 		memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-		ACCESS = false;
+		
 		SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 		SIM_SendString("AT+CMGD=,4\r\n"); 
 		relayState=true;
-		SMS_mode = true;
 		
 	}else if(relayState==true){
 		HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
@@ -694,14 +599,12 @@ if (str1 != NULL)
 			SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
 			sprintf(ATcommandd,"AT+CMGS=\"%s\"\r\n",mobileNumber);
 			SIM_SendString(ATcommandd);
-			sprintf(ATcommandd, "Machine_Status:%s%c",ARMED_STATUS,0x1a);
+			sprintf(ATcommandd, "Machine_Status: DISARMED%c",0x1a);
 			SIM_SendString(ATcommandd);
 			memset(ATcommandd,NULL,sizeof(ATcommandd)); 
-			ACCESS = false;
 			SIM_SendString("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n");
 			SIM_SendString("AT+CMGD=,4\r\n"); 		
 		relayState=false;
-		SMS_mode = true;
 	}
 }
 str1 = strstr(strStart, "\"shared\"");
@@ -717,14 +620,6 @@ if (str1 != NULL)
         {
 						debugPrintln(str1);
             str1 += 1; // Move to the value after the colon
-            // Skip whitespace and check for '{'
-            //while (*str1 != '{' && *str1 != '\0')
-            //{
-              // str1++;
-            //	}
-           // if (*str1 == '{') // Found '{', move to next character
-           // {
-                //str1 += 1;
                 // Read the boolean value at specified position
 						debugPrintln(str1);
                 if (*str1 == 't' ) // Assuming 't' for true, 'f' for false
@@ -734,9 +629,8 @@ if (str1 != NULL)
                     HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_SET);
                     HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_SET);
                     HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_SET);
-                    rpc_status = false;
-                    fonction_control = false;
-                    prev_fonction_control = true;
+                   
+                    
 										relayState = true; // Update the relay state
                     //Previous_rpc_status=rpc_status;
                 }
@@ -747,9 +641,8 @@ if (str1 != NULL)
                     HAL_GPIO_WritePin(GPIOC, RLY_1_Pin, GPIO_PIN_RESET);
                     HAL_GPIO_WritePin(GPIOC, RLY_2_Pin, GPIO_PIN_RESET);
                     HAL_GPIO_WritePin(GPIOC, RLY_3_Pin, GPIO_PIN_RESET);
-                    rpc_status = false;
-                    fonction_control = false;
-                    prev_fonction_control = true;
+                    
+                    
 										relayState = false; // Update the relay state
                     //Previous_rpc_status=rpc_status;
                 }
@@ -757,41 +650,56 @@ if (str1 != NULL)
         }
     }
 }
-//get gps data--------------------------------------------------------------------
-str1 = strstr(strStart, "+CGPSINFO:");
+//------------------------------------------------------------------------------------
+
+    str1 = strstr(strStart, "\"shared\"");
     if (str1 != NULL) {
-
-        // Move to the latitude token
-        token = strtok_r(str1, ",", &saveptr);
-        if (token != NULL) {
-            // Copy latitude
-            strncpy(lat, token + 11, 9); // Skip "+CGPSINFO:", assuming latitude is 9 characters long
-            lat[9] = '\0'; // Null-terminate the string
-            // Move to the latitude direction token
-            token = strtok_r(NULL, ",", &saveptr);
-            if (token != NULL) {
-                // Move to the longitude token
-                token = strtok_r(NULL, ",", &saveptr);
-                if (token != NULL) {
-                    // Copy longitude
-                    strncpy(lon, token + 1, 10); // Skip leading comma, assuming longitude is 10 characters long
-                    lon[10] = '\0'; // Null-terminate the string
-
-                    // Print latitude and longitude
-                    debugPrint("Latitude: ");
-                    debugPrintln(lat);
-                    debugPrint("Longitude: ");
-                    debugPrintln(lon);
-
-                    return;
+        debugPrintln(str1);  // Print the part of the string starting from "shared"
+        
+        str1 = strstr(str1, "\"phone\":");
+        if (str1 != NULL) {
+            debugPrintln(str1);  // Print the part of the string starting from "phone":
+            
+            str1 = strchr(str1, ':');
+            if (str1 != NULL) {
+                debugPrintln(str1);  // Print the part of the string starting from the colon
+                
+                str1 += 1;  // Move to the value after the colon
+                
+                // Trim leading whitespace and quotation marks
+                while (*str1 == ' ' || *str1 == '"') {
+                    str1++;
                 }
+                
+                // Extract the phone number
+                int i = 0;
+                while (*str1 != '"' && *str1 != '\0' && i < sizeof(mobileNumber) - 1) {
+                    mobileNumber[i++] = *str1++;
+                }
+                mobileNumber[i] = '\0';  // Null-terminate the string
+                
+                debugPrintln(mobileNumber);  // Print the extracted phone number
             }
         }
-        // Handle error: Unable to extract latitude and longitude
-       // debugPrintln("Error: Unable to extract latitude and longitude");
-    } else {
-        // Handle error: CGPSINFO data not found
-        //debugPrintln("Error: CGPSINFO data not found");
+    }
+
+//get gps data--------------------------------------------------------------------
+str1 = strstr(strStart, "+CGPSINFO:");
+    if (str1 != NULL) 
+		{
+				str1 += 10;  // Move past "+CGPSINFO:"
+
+        // Parse NMEA string to extract coordinates
+        Coordinates coords = parseNMEA(str1);
+
+        // Convert latitude and longitude to decimal degrees
+        latitudeDecimal = convertDMSToDecimal(coords.latitude, coords.latDirection);
+        longitudeDecimal = convertDMSToDecimal(coords.longitude, coords.lonDirection);
+
+        // Print latitude and longitude in decimal degrees
+        debugPrint("Latitude: ");
+        debugPrint("Longitude: ");
+
     }
 	//End Thingsboard Section
   str1 = strstr(strStart,"\r\n+CREG:");
@@ -994,67 +902,5 @@ void StartSIMBuffTask(void const * argument)
     osDelay(10);
   }    
 }
-
-void updateLed(void) {
-    // Terminate any existing HTTP session
-    //SIM_SendAtCommand("AT+HTTPTERM\r\n", 500, "OK");
-
-    // Initialize HTTP session
-		SIM_SendAtCommand("AT+HTTPTERM\r\n",1000,"OK");
-    //SIM_SendAtCommand("AT+HTTPINIT\r\n", 2000, "OK");
-			if(SIM_SendAtCommand("AT+HTTPINIT\r\n", 1000, "OK") == 1)
-	{
-		debugPrintln("HTTPINIT RESPONSE OK");
-
-	}else{
-			debugPrintln("HTTPINIT RESPONSE NOT OK");
-			debugPrintln("Sorry we need to restard module");
-			SIM_SendString("AT+CPOF\r\n");
-			HAL_Delay(60000);
-	}
-    // Set the ThingSpeak URL
-    SIM_SendString("AT+HTTPPARA=\"URL\",\"https://api.thingspeak.com/channels/2268171/fields/1.json?api_key=CGDRYLEUYF3P31MP&results=2\"\r\n");
-    HAL_Delay(1000);
-    // Perform HTTP GET request
-    SIM_SendAtCommand("AT+HTTPACTION=0\r\n", 1000, "20");
-    SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n", 1000, "OK");
-		SIM_SendAtCommand("AT+HTTPTERM\r\n",1000,"OK");
-    HAL_Delay(5000);
-}
-void RPC_control(void) {
-    // Terminate any existing HTTP session
-    //SIM_SendString("AT+HTTPTERM\r\n");
-
-   
-
-    // Set the ThingSpeak URL
-    SIM_SendString("AT+HTTPPARA=\"URL\",\"https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/rpc\"\r\n");
-		SIM_SendAtCommand("AT+HTTPACTION=0\r\n",2000,"OK");
-    // Perform HTTP GET request
-
-		// Attendre jusqu'à ce que la réponse contienne la méthode "setValue"
-    //while (rpc_status == Previous_rpc_status){
-			//SIM_SendString("AT+HTTPPARA=\"URL\",\"https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/rpc\"\r\n");
-			//SIM_SendAtCommand("AT+HTTPACTION=0\r\n",2000,"OK");
-			//SIM_SendString("AT+HTTPREAD=0,500\r\n");
-			//debugPrintln("ATT response with method setValue");
-			//osDelay(1000);
-		//}
-		
-		//rpc_status = true;
-    // Une réponse contenant la méthode "setValue" a été trouvée
-    //debugPrintln("Received response with method setValue");
-
-    // Lire le reste de la réponse
-    
-
-    // Terminer la session HTTP
-    //SIM_SendString("AT+HTTPTERM\r\n");
-    //HAL_Delay(5000);
-}
-
-
-
-
 
 

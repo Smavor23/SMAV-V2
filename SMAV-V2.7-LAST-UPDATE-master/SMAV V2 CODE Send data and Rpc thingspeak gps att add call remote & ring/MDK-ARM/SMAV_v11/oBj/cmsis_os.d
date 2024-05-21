@@ -1,0 +1,19 @@
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.c
+.\smav_v11\obj\cmsis_os.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+.\smav_v11\obj\cmsis_os.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
+.\smav_v11\obj\cmsis_os.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\smav_v11\obj\cmsis_os.o: ../Core/Inc/FreeRTOSConfig.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3/portmacro.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h
+.\smav_v11\obj\cmsis_os.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h
+.\smav_v11\obj\cmsis_os.o: C:\Users\ELHOUJJAJI YASSER\AppData\Local\Arm\Packs\ARM\CMSIS\5.9.0\CMSIS\Core\Include\cmsis_armcc.h

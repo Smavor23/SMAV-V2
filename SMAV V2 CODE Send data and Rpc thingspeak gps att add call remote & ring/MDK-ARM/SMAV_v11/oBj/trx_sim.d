@@ -59,3 +59,4 @@
 .\smav_v11\obj\trx_sim.o: ../Core/Inc/sht2x_for_stm32_hal.h
 .\smav_v11\obj\trx_sim.o: ../Core/Inc/at24cxx.h
 .\smav_v11\obj\trx_sim.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\ctype.h
+.\smav_v11\obj\trx_sim.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h

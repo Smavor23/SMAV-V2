@@ -120,6 +120,7 @@ char data[512];
 //--------------------------------§URL SERVER§------------------------------
 const char *url = "http://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/telemetry";
 const char *url_RPC = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/attributes?sharedKeys=setValue";
+const char *url_phone = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/attributes?sharedKeys=phone";
 const char *url_ATTRIBUTE = "https://demo.thingsboard.io/api/v1/xMJwZXAY71oDofdBzdTC/attributes";
 //--------------------------------------------------------------------------
 
@@ -135,12 +136,9 @@ extern char functionalityStatus[50];
 extern char operatorName[50];
 //--------------------------------------------------------------------------
 //-------------------------------§GPS DATA§---------------------------------
-extern char lat[20], lon[20];
+
 //--------------------------------------------------------------------------
-extern bool ACCESS;     //from trx_sim.c
-extern bool SMS_mode;
 bool sendDataTaskRunning = true;
-uint8_t datatreamcount = 0;	
 //==========================================================================
 //------------------------------END Variables-------------------------------
 //==========================================================================
@@ -154,22 +152,7 @@ osSemaphoreId BinSemHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-//ADC is measured through interrupts
-//this function will fill the adc_buffer with raw values (0 to 2^12).
 
-/*void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* AdcHandle)
-{
-  if(__HAL_ADC_GET_FLAG(AdcHandle, ADC_FLAG_EOC)){
-    //sprintf((char*)sensor_buffer,"ADC -> %d\n", (int)HAL_ADC_GetValue(&hadc1));
-    //debugPrintln(sensor_buffer);
-    adc_buffer[adc_index] = HAL_ADC_GetValue(&hadc1);
-    adc_index++;
-  }
-  if(adc_index>=4)
-            adc_index=0;
-  	
-}
-*/
 /* USER CODE END FunctionPrototypes */
 
 void StartDiagnosticTask(void const * argument);
@@ -292,28 +275,33 @@ void uprintf(char *str) {
     HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 100);
 }
 //----------------END BUBBUG Function to transmit a string over UART-----------------
-void uint8ToChar(uint8_t *uintBuffer, char *charBuffer, uint32_t size) {
-    for (uint32_t i = 0; i < size; i++) {
-        charBuffer[i] = (char)uintBuffer[i];
-    }
-}
 
-void RPC_FETCH_ATTRIBUTES(void) {
+void RPC_FETCH_ATTRIBUTES(void) 
+	{
 	
-	SIM_SendAtCommand("AT+HTTPINIT\r\n",2000,"OK");
-	memset(buffer_X,0,sizeof(buffer_X));
-	snprintf(buffer_X, sizeof(buffer_X), "AT+HTTPPARA=\"URL\",\"%s\"\r\n", url_RPC);
-	SIM_SendString(buffer_X);
-	HAL_Delay(2000);
-	SIM_SendAtCommand("AT+HTTPACTION=0\r\n",3000,"OK");
-	SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n",3000,"OK");
-	//SIM_SendAtCommand("AT+HTTPTERM=0\r\n",3000,"OK");
-	//HAL_Delay(3000);
-	memset(buffer_X,NULL,sizeof(buffer_X));
+		SIM_SendAtCommand("AT+HTTPINIT\r\n",2000,"OK");
+		memset(buffer_X,0,sizeof(buffer_X));
+		snprintf(buffer_X, sizeof(buffer_X), "AT+HTTPPARA=\"URL\",\"%s\"\r\n", url_RPC);
+		SIM_SendString(buffer_X);
+		HAL_Delay(2000);
+		SIM_SendAtCommand("AT+HTTPACTION=0\r\n",3000,"OK");
+		SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n",3000,"OK");
+		memset(buffer_X,NULL,sizeof(buffer_X));
+		SIM_SendString("AT+HTTPTERM\r\n");
+    HAL_Delay(3000);
+		SIM_SendAtCommand("AT+HTTPINIT\r\n",2000,"OK");
+		memset(buffer_X,0,sizeof(buffer_X));
+		snprintf(buffer_X, sizeof(buffer_X), "AT+HTTPPARA=\"URL\",\"%s\"\r\n", url_phone);
+		SIM_SendString(buffer_X);
+		HAL_Delay(2000);
+		SIM_SendAtCommand("AT+HTTPACTION=0\r\n",3000,"OK");
+		SIM_SendAtCommand("AT+HTTPREAD=0,500\r\n",3000,"OK");
+		memset(buffer_X,NULL,sizeof(buffer_X));
 	
-}
+	}
 //----------------------------BEGIN SIM7600_HTTPPost----------------------------------
-void SIM7600_HTTPPost(const char *url, const char *data) {
+void SIM7600_HTTPPost(const char *url, const char *data) 
+	{
     
     // Construct HTTP POST request
     snprintf(buffer_X, sizeof(buffer_X), "AT+HTTPINIT\r\n");
@@ -342,16 +330,12 @@ void SIM7600_HTTPPost(const char *url, const char *data) {
     SIM_SendString("AT+HTTPTERM\r\n");
     HAL_Delay(3000);
 		memset(buffer_X,NULL,sizeof(buffer_X));
-}
+	}
 //--------------------------------END SIM7600_HTTPPost------------------------------------------------
 
 //------------------------------------ATTRIBUTE-------------------------------------------------------
-void SIM7600_ATTRIBUTE(const char *url_ATTRIBUTE, const char *data_attribute) {
-    
-    // Construct HTTP POST request
-    //snprintf(buffer_Attribute, sizeof(buffer_Attribute), "AT+HTTPINIT\r\n");
-    //SIM_SendString(buffer_Attribute);
-    //HAL_Delay(2000);
+void SIM7600_ATTRIBUTE(const char *url_ATTRIBUTE, const char *data_attribute) 
+	{
     
     snprintf(buffer_Attribute, sizeof(buffer_Attribute), "AT+HTTPPARA=\"URL\",\"%s\"\r\n", url_ATTRIBUTE);
     SIM_SendString(buffer_Attribute);
@@ -375,18 +359,19 @@ void SIM7600_ATTRIBUTE(const char *url_ATTRIBUTE, const char *data_attribute) {
     SIM_SendString("AT+HTTPTERM\r\n");
     HAL_Delay(3000);
 		memset(buffer_Attribute,NULL,sizeof(buffer_Attribute));
-}
-void Send_Attribute_data(bool relayState,char* lat,char* lon,char* rssiString, char* operatorName, char* Module_Status) {
-    
+		
+	}
+void Send_Attribute_data(bool relayState,char* lat,char* lon,char* rssiString, char* operatorName, char* Module_Status) 
+	{
     // Format sensor data into JSON string
     snprintf(data_attribute, 100, "{\"relayState\": \"%d\", \"latitude\": \"%s\", \"longitude\": \"%s\",\"rssi\": \"%s\",\"operatorName\": \"%s\",\"moduleStatus\": \"%s\"}", relayState, lat, lon,rssiString,operatorName, Module_Status);
-    
     // Your existing code to send data to the server...
 		SIM7600_ATTRIBUTE(url_ATTRIBUTE, data_attribute);
-}
+	}
 //----------------------------------------------------------------------------------------------------
 //----------------------------BEGIN SIM7600_HTTPPost_Diagnostic_Data----------------------------------
-void SIM7600_HTTPPost_Diagnostic_Data(const char *url, const char *data_Diag) {
+void SIM7600_HTTPPost_Diagnostic_Data(const char *url, const char *data_Diag) 
+	{
     
     // Construct HTTP POST request
     snprintf(buffer_Diag, sizeof(buffer_Diag), "AT+HTTPINIT\r\n");
@@ -415,43 +400,66 @@ void SIM7600_HTTPPost_Diagnostic_Data(const char *url, const char *data_Diag) {
     SIM_SendString("AT+HTTPTERM\r\n");
     HAL_Delay(3000);
 		memset(buffer_Diag,NULL,sizeof(buffer_Diag));
-}
-void Send_Diagnostic_data(char* rssiString, char* functionalityStatus, char* operatorName, char* Module_Status) {
-    
+		
+	}
+void Send_Diagnostic_data(char* rssiString, char* functionalityStatus, char* operatorName, char* Module_Status) 
+	{ 
     // Format sensor data into JSON string
     snprintf(data_Diag, 256, "{\"rssi\": \"%s\",\"functionalityStatus\": \"%s\",\"operatorName\": \"%s\",\"moduleStatus\": \"%s\"}", rssiString, functionalityStatus, operatorName, Module_Status);
-    
     // Your existing code to send data to the server...
 		SIM7600_HTTPPost_Diagnostic_Data(url, data_Diag);
-}
+	}
 //----------------------------END SIM7600_HTTPPost_Diagnostic_Data----------------------------------
 
 //----------------------------BEGIN SIM7600_Init----------------------------------------------------
 void SIM7600_Init(void) {
-    // Basic initialization commands
-		HAL_UART_Transmit(&huart2, (uint8_t *) "-->BGIN SIM7600_Init---------------\n", strlen ("-->BGIN SIM7600_Init---------------\n"), 100);
-		SIM_Init(osPriorityNormal); //This functions starts another task in the trx_sim.c
+    // Send a debug message to UART indicating the beginning of SIM7600 initialization
+    HAL_UART_Transmit(&huart2, (uint8_t *) "-->BGIN SIM7600_Init---------------\n", strlen ("-->BGIN SIM7600_Init---------------\n"), 100);
+    // Start another task related to SIM initialization, likely setting up a communication task
+    SIM_Init(osPriorityNormal); 
 		SIM_SendAtCommand("AT+CGPS=1\r\n",1000,"OK");
-		SIM_SendAtCommand("AT+CPIN=0000\r\n",3000,"OK");
-		HAL_Delay(1000);
+    // Send AT command to configure line bearer service, waiting 1000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CLBSCFG=0,3\r\n",1000,"OK");
+    // Send AT command to enter PIN, waiting 3000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CPIN=0000\r\n",3000,"OK");
+    // Wait for 1 second to allow the previous command to be fully processed
+    HAL_Delay(1000);
+    // Send AT command to set the device functionality to full
     SIM_SendString("AT+CFUN=1\r\n");
+    // Wait for 1 second to ensure the command is processed
     HAL_Delay(1000);
-		SIM_SendAtCommand("AT+CCID\r\n",3000,"OK");
-		SIM_SendAtCommand("AT+CREG?\r\n",3000,"OK");
-		SIM_SendAtCommand("AT+CGATT=1\r\n",1000,"OK");
-		SIM_SendAtCommand("AT+CGACT=1,1\r\n",1000,"OK");
-		SIM_SendAtCommand("AT+CNMP=2\r\n",2000,"OK");
+    // Send AT command to get the ICCID of the SIM card, waiting 3000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CCID\r\n",3000,"OK");
+    // Send AT command to check the network registration status, waiting 3000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CREG?\r\n",3000,"OK");
+    // Send AT command to attach to the GPRS service, waiting 1000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CGATT=1\r\n",1000,"OK");
+    // Send AT command to activate the PDP context, waiting 1000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CGACT=1,1\r\n",1000,"OK");
+    // Send AT command to set the network mode to auto, waiting 2000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CNMP=2\r\n",2000,"OK");
+    // Send AT command to define PDP context with APN settings for the network provider
     SIM_SendString("AT+CGDCONT=1,\"IP\",\"www.inwi.ma\"\r\n");
+    // Wait for 1 second to ensure the command is processed
     HAL_Delay(1000);
-		SIM_SendAtCommand("AT+CNUM\r\n",10000,"OK");
-		HAL_Delay(20000);
-		SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
-		SIM_SendAtCommand("AT+CNMI=2,1\r\n",1000,"OK");
-		HAL_Delay(1000);
-		SIM_SendAtCommand("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n",5000,"OK");
-		SIM_SendAtCommand("AT+CMGD=,4\r\n",10000,"OK"); 
-		HAL_UART_Transmit(&huart2, (uint8_t *) "-->END SIM7600_Init----------------\n", strlen ("-->END SIM7600_Init----------------\n"), 100);
+    // Send AT command to get the device phone number, waiting 10000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CNUM\r\n",10000,"OK");
+    // Wait for 20 seconds to allow network registration to complete
+    HAL_Delay(20000);
+    // Send AT command to set SMS text mode, waiting 1000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CMGF=1\r\n",1000,"OK");
+    // Send AT command to configure new SMS message indications, waiting 1000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CNMI=2,1\r\n",1000,"OK");
+    // Wait for 1 second to ensure the command is processed
+    HAL_Delay(1000);
+    // Send AT command to select SMS storage, waiting 5000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CPMS=\"SM\",\"SM\",\"SM\"\r\n",5000,"OK");
+    // Send AT command to delete all SMS messages from the device, waiting 10000 ms for response, expecting "OK"
+    SIM_SendAtCommand("AT+CMGD=,4\r\n",10000,"OK"); 
+    // Send a debug message to UART indicating the end of SIM7600 initialization
+    HAL_UART_Transmit(&huart2, (uint8_t *) "-->END SIM7600_Init----------------\n", strlen ("-->END SIM7600_Init----------------\n"), 100);
 }
+
 
 void SIM7600_RESET(void) {
 	//SIM_SendString("AT+CRESET=?\r\n");
@@ -462,8 +470,8 @@ void GPS_DATA(void) {
 
 	//SIM_SendAtCommand("AT+CGPS=1\r\n",1000,"OK");
 	HAL_Delay(2000);
-	SIM_SendAtCommand("AT+CGPSINFO\r\n",60000,"OK");
-	HAL_Delay(3000);
+	SIM_SendString("AT+CGPSINFO\r\n");
+	HAL_Delay(40000);
 	SIM_SendAtCommand("AT+CGPS=0\r\n",3000,"OK");
 	
 }
@@ -505,12 +513,10 @@ void StartDiagnosticTask(void const * argument)
 		HAL_UART_Transmit(&huart2, (uint8_t *) "DEVICE DEVUI : ", strlen ("DEVICE DEVUI : "), 100);
 		HAL_UART_Transmit(&huart2, (uint8_t *) DEVEUI, strlen (DEVEUI), 100);
 		
-		
 		SIM7600_Init();
-		//GPS_DATA();
 		
 		HAL_Delay(1000);
-		
+		//GPS_DATA();
 		char *str1 = "Entered StartDiagnosticTask\n";
 		HAL_UART_Transmit(&huart2, (uint8_t *) str1, strlen (str1), 100);
 		
@@ -533,27 +539,27 @@ void StartDiagnosticTask(void const * argument)
 		//HAL_Delay(250);
 		
 		HAL_UART_Transmit(&huart2, (uint8_t *) "-->BGIN SENSORS DATA VALUES----------\n", strlen ("-->BGIN SENSORS DATA VALUES----------\n"), 100);
-		sprintf(float_buffer, "--> Vsense_1     :%f\n",Vsense_1);
+		sprintf(float_buffer, "--> Vsense_1     :%.2f\n",Vsense_1);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> Vsense_2     :%f\n",Vsense_2);
+		sprintf(float_buffer, "--> Vsense_2     :%.2f\n",Vsense_2);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> VBattery     :%f\n",VBattery);
+		sprintf(float_buffer, "--> VBattery     :%.2f\n",VBattery);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> Wind_stat    :%f\n",Wind_stat);
+		sprintf(float_buffer, "--> Wind_stat    :%.2f\n",Wind_stat);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> Gas_lvl      :%f\n",Gas_lvl);
+		sprintf(float_buffer, "--> Gas_lvl      :%.2f\n",Gas_lvl);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> temperature1 :%f\n",temperature1);
+		sprintf(float_buffer, "--> temperature1 :%.2f\n",temperature1);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> temperature2 :%f\n",temperature2);
+		sprintf(float_buffer, "--> temperature2 :%.2f\n",temperature2);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> humidity1		:%f\n",humidity1);
+		sprintf(float_buffer, "--> humidity1		:%.2f\n",humidity1);
 		uprintf(float_buffer);
-		sprintf(float_buffer, "--> humidity2 		:%f\n",humidity2);
+		sprintf(float_buffer, "--> humidity2 		:%.2f\n",humidity2);
 		uprintf(float_buffer);
 		HAL_UART_Transmit(&huart2, (uint8_t *) "-->END SENSORS DATA VALUES----------\n", strlen ("-->END SENSORS DATA VALUES----------\n"), 100);
 		HAL_Delay(3000);
-		
+
 		//--------------Begin LoRa DIAGNOSTIC---------------------------------------------
 		HAL_UART_Transmit(&huart2, (uint8_t *) "-->BEGIN LORA MODULE DIAGNOSTIC----------\n", strlen ("-->BEGIN LORA MODULE DIAGNOSTIC----------\n"), 100);
 		
@@ -628,12 +634,8 @@ void StartLoraTask(void const * argument)
 						HAL_Delay(100); 
 					}
 		//--------------SENSORS DIAGNOSTIC-----------------------------------------------
-	
 		Vsense_1 =  (float)ADC_Read_VSense_1()/4095*16.5 + 5;
 		Vsense_2 =  (float)ADC_Read_VSense_2()/4095*14.5+ 0.6;
-		VBattery =  (float)ADC_Read_Vbattery();
-		Wind_stat = (float)(ADC_Read_Wind()*(3.3)/(4095))*230; 
-		Gas_lvl =   (float)ADC_Read_Gas()*83/4095;
 		osDelay(1000); // Delay in milliseconds
 					 }
   }
@@ -654,14 +656,15 @@ void StartSendDataTask(void const * argument)
   for(;;)
   {
 		
-			
+		
+		
 		//Buffer to store the formatted string
 		if(sendDataTaskRunning == false){
 		RPC_FETCH_ATTRIBUTES();
 		HAL_Delay(10000);
-
+		Vsense_1 =  (float)ADC_Read_VSense_1()/4095*16.5 + 5;
+		Vsense_2 =  (float)ADC_Read_VSense_2()/4095*14.5+ 0.6;
 		//send a real time data or the urgent data
-		prev_relayState=relayState;
 		snprintf(data_attribute, 256, "{\"relayState\": \"%d\",\"Machine\":%.2f,\"Battery\":%.2f}", relayState,Vsense_1, Vsense_2);
 		SIM7600_ATTRIBUTE(url_ATTRIBUTE, data_attribute);
 	}
