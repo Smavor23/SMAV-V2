@@ -1,0 +1,15 @@
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/queue.c
+.\smav_v11\obj\queue.o: C:\Users\mydev\AppData\Local\N_Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+.\smav_v11\obj\queue.o: C:\Users\mydev\AppData\Local\N_Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
+.\smav_v11\obj\queue.o: C:\Users\mydev\AppData\Local\N_Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h
+.\smav_v11\obj\queue.o: C:\Users\mydev\AppData\Local\N_Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\smav_v11\obj\queue.o: ../Core/Inc/FreeRTOSConfig.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/portable.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM3/portmacro.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/list.h
+.\smav_v11\obj\queue.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h
